@@ -104,3 +104,35 @@ export function homeworkCount(slots: { entry: Entry | null }[], unmatched: Entry
   for (const e of unmatched) if (e.homework) set.add(e.homework.trim());
   return set.size;
 }
+
+export interface EventRow { id: string; title: string; date: string; end_date: string | null; kind: "holiday" | "exam" | "due" | "event"; subject_key: string | null; note: string | null; source: "manual" | "plan" | "school"; week_id: string | null }
+export async function loadEvents(): Promise<EventRow[]> {
+  const { data } = await supabase().from("events").select("*").order("date");
+  return (data || []) as EventRow[];
+}
+export async function saveEvent(e: Partial<EventRow> & { title: string; date: string; kind: EventRow["kind"] }) {
+  const { data, error } = await supabase().from("events").upsert({ ...e, source: e.source ?? "manual" }).select().single();
+  return error ? null : (data as EventRow);
+}
+export async function deleteEvent(id: string) {
+  const { error } = await supabase().from("events").delete().eq("id", id);
+  return !error;
+}
+export interface WeekSummary extends WeekRow { created_at: string; done: number; total: number }
+export async function loadWeeks(): Promise<WeekSummary[]> {
+  const sb = supabase();
+  const [{ data: weeks }, { data: prog }, { data: per }] = await Promise.all([
+    sb.from("weeks").select("*").order("start_date", { ascending: false }),
+    sb.from("progress").select("week_id").not("done_at", "is", null),
+    sb.from("periods").select("timetable_id"),
+  ]);
+  const doneBy: Record<string, number> = {};
+  for (const r of (prog || []) as { week_id: string }[]) doneBy[r.week_id] = (doneBy[r.week_id] ?? 0) + 1;
+  const totalBy: Record<string, number> = {};
+  for (const r of (per || []) as { timetable_id: string }[]) totalBy[r.timetable_id] = (totalBy[r.timetable_id] ?? 0) + 1;
+  return ((weeks || []) as (WeekRow & { created_at: string })[]).map((w) => ({ ...w, done: doneBy[w.id] ?? 0, total: w.timetable_id ? totalBy[w.timetable_id] ?? 0 : 0 }));
+}
+export async function loadWeekByStart(start: string): Promise<WeekRow | null> {
+  const { data } = await supabase().from("weeks").select("*").eq("start_date", start).maybeSingle();
+  return (data as WeekRow | null) ?? null;
+}

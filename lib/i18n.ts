@@ -29,6 +29,10 @@ const dict = {
     howFelt: "How did it feel?", feelEasy: "Easy", feelEasySub: "I understood it well", feelOk: "OK", feelOkSub: "I mostly got it", feelHard: "Hard", feelHardSub: "I need help with this",
     starsTitle: "My stars", totalStars: "stars collected", fullDays: "Full days", fullWeeks: "Full weeks", streak: "Days in a row", starsPerWeek: "Stars each week", keepGoing: "Every finished lesson is a star. Keep going!", noStarsYet: "Finish a lesson to earn your first star!",
     timetable: "Timetable", uploadTimetable: "Upload new timetable", validFrom: "Valid from", ttNote: "Weeks uploaded before this keep their old timetable. Re-upload the current plan to place it with the new one.",
+    weeks: "Weeks", calendar: "Calendar", currentWeek: "Current week", oldWeek: "You are looking at a past week", backToCurrent: "Back to this week", futureWeek: "This is a coming week",
+    addEvent: "Add event", editEvent: "Edit", deleteEvent: "Delete", title: "Title", date: "Date", kind: "Type", noSubject: "No subject",
+    kinds: { holiday: "Holiday", exam: "Exam", due: "Due", event: "Event" }, daysAway: "days away", tomorrowLabel: "tomorrow", todayLabel: "today", past: "Past", upcoming: "Coming up", noEvents: "Nothing on the calendar yet.",
+    fromPlan: "from the weekly plan", confirmDelete: "Delete this event?", noWeeks: "No weeks uploaded yet.", uploadedOn: "read on",
     subject: "Subject", ttUploaded: "Timetable saved", periodsRead: "periods read", ttBody: "Pick the picture or PDF of the grid the school sent. Tap any period below to fix it by hand.", ttReading: "Reading the timetable with Claude…",
   },
   ar: {
@@ -54,6 +58,10 @@ const dict = {
     howFelt: "كيف كان؟", feelEasy: "سهل", feelEasySub: "فهمته جيدًا", feelOk: "متوسط", feelOkSub: "فهمت معظمه", feelHard: "صعب", feelHardSub: "أحتاج مساعدة",
     starsTitle: "نجومي", totalStars: "نجمة جمعتها", fullDays: "أيام كاملة", fullWeeks: "أسابيع كاملة", streak: "أيام متتالية", starsPerWeek: "النجوم كل أسبوع", keepGoing: "كل درس تنهيه نجمة. استمر!", noStarsYet: "أنهِ درسًا لتحصل على أول نجمة!",
     timetable: "الجدول", uploadTimetable: "رفع جدول جديد", validFrom: "ساري من", ttNote: "الأسابيع المرفوعة قبل هذا تبقى على جدولها القديم. أعد رفع خطة الأسبوع الحالي لترتيبها على الجدول الجديد.",
+    weeks: "الأسابيع", calendar: "التقويم", currentWeek: "الأسبوع الحالي", oldWeek: "أنت تشاهد أسبوعًا سابقًا", backToCurrent: "العودة إلى هذا الأسبوع", futureWeek: "هذا أسبوع قادم",
+    addEvent: "إضافة حدث", editEvent: "تعديل", deleteEvent: "حذف", title: "العنوان", date: "التاريخ", kind: "النوع", noSubject: "بدون مادة",
+    kinds: { holiday: "إجازة", exam: "اختبار", due: "تسليم", event: "حدث" }, daysAway: "يومًا متبقيًا", tomorrowLabel: "غدًا", todayLabel: "اليوم", past: "سابق", upcoming: "القادم", noEvents: "لا شيء في التقويم بعد.",
+    fromPlan: "من الخطة الأسبوعية", confirmDelete: "حذف هذا الحدث؟", noWeeks: "لم تُرفع أي أسابيع بعد.", uploadedOn: "قُرئ في",
     subject: "المادة", ttUploaded: "تم حفظ الجدول", periodsRead: "حصة قُرئت", ttBody: "اختر صورة أو PDF الجدول الذي أرسلته المدرسة. اضغط أي حصة أدناه لتصحيحها يدويًا.", ttReading: "جارٍ قراءة الجدول بواسطة Claude…",
   },
 };

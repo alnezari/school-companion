@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useLang } from "@/lib/lang";
 import { t, DAY_SHORT, DAY_NAMES } from "@/lib/i18n";
 import { todayISO, schoolDay, weekStartFor, addDays, formatDate } from "@/lib/schedule";
-import { buildDay, homeworkCount, loadEntries, loadPeriods, loadProgress, loadWeekFor, pkey, signedUrl, subscribeProgress, type Entry, type ProgressMap, type WeekRow } from "@/lib/data";
+import { buildDay, homeworkCount, loadEntries, loadPeriods, loadProgress, loadWeekByStart, pkey, signedUrl, subscribeProgress, type Entry, type ProgressMap, type WeekRow } from "@/lib/data";
+import { ParentNav } from "@/components/ParentNav";
 import type { Period } from "@/lib/placement";
 import { SUBJECTS, PLAN_SUBJECT_LABEL, type SubjectKey, type PlanSubject } from "@/lib/subjects";
 import { LangToggle } from "@/components/LangToggle";
@@ -16,9 +17,15 @@ export default function ParentPage() {
   const [lang, setLang] = useLang("parent");
   const d = t(lang);
   const [today, setToday] = useState<string | null>(null);
-  useEffect(() => { setToday(todayISO()); }, []);
-  const weekStart = useMemo(() => (today ? weekStartFor(today) : null), [today]);
-  const todayIdx = today ? schoolDay(today) : null;
+  const [weekStart, setWeekStart] = useState<string | null>(null);
+  useEffect(() => {
+    const t0 = todayISO(); setToday(t0);
+    const q = new URLSearchParams(window.location.search).get("week");
+    setWeekStart(q && /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : weekStartFor(t0));
+  }, []);
+  const currentStart = today ? weekStartFor(today) : null;
+  const isCurrent = !!weekStart && weekStart === currentStart;
+  const todayIdx = today && isCurrent ? schoolDay(today) : null;
   const [day, setDay] = useState<number>(0);
   useEffect(() => { if (todayIdx != null) setDay(todayIdx); }, [todayIdx]);
   const [periods, setPeriods] = useState<Period[]>([]);
@@ -34,7 +41,7 @@ export default function ParentPage() {
   useEffect(() => {
     if (!weekStart) return;
     (async () => {
-      const w = await loadWeekFor(weekStart);
+      const w = await loadWeekByStart(weekStart);
       const p = await loadPeriods(w?.timetable_id);
       setPeriods(p); setWeek(w);
       if (w) {
@@ -63,14 +70,20 @@ export default function ParentPage() {
         <h1 className="font-display text-xl font-extrabold">{d.parentTitle} {week?.week_number ?? ""} {weekStart && <span className="text-ink-2 text-base font-normal">· {formatDate(weekStart, lang)} – {formatDate(addDays(weekStart, 4), lang)}</span>}</h1>
         <div className="ms-auto flex items-center gap-2">
           <LangToggle lang={lang} setLang={setLang} />
-          <Link href="/parent/timetable" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">🗓 {d.timetable}</Link>
           <Link href="/parent/settings" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">⚙</Link>
           <Link href="/" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">🎒</Link>
         </div>
       </header>
 
       <div className="mx-auto mt-3 max-w-3xl">
-        <div className="grid grid-cols-5 gap-1.5">
+        <ParentNav active="week" d={d} />
+        {weekStart && currentStart && !isCurrent && (
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl border-s-4 border-orange bg-orange-soft px-3 py-2 text-sm">
+            <span>⏪ {weekStart < currentStart ? d.oldWeek : d.futureWeek}</span>
+            <Link href="/parent" className="rounded-lg bg-white px-3 py-1 font-semibold">{d.backToCurrent}</Link>
+          </div>
+        )}
+        <div className="mt-3 grid grid-cols-5 gap-1.5">
           {DAY_SHORT[lang].map((n, i) => (
             <button key={i} onClick={() => { setDay(i); setOpenSlot(null); }}
               className={`rounded-xl border py-2 text-sm font-semibold ${i === day ? "border-accent bg-accent text-white" : "border-line bg-white"} ${i === todayIdx ? "ring-2 ring-orange ring-offset-1" : ""}`}>

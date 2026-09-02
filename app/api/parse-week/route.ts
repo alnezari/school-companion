@@ -99,6 +99,11 @@ export async function POST(req: Request) {
   const { data: weekId, error } = await sb.rpc("replace_week", { p_week: week, p_entries: entries });
   if (error) return NextResponse.json({ error: "db", message: error.message, storagePath }, { status: 500 });
 
+  // 6. Dates the plan mentions become calendar entries (only those with a readable date).
+  await sb.from("events").delete().eq("week_id", weekId).eq("source", "plan");
+  const dated = parsed.dates_mentioned.filter((x) => x.date && /^\d{4}-\d{2}-\d{2}$/.test(x.date));
+  if (dated.length) await sb.from("events").insert(dated.map((x) => ({ title: x.text, date: x.date, kind: x.kind === "other" ? "event" : x.kind, source: "plan", week_id: weekId })));
+
   return NextResponse.json({
     ok: true, weekId, start, end, confidence, issues, what_i_saw: parsed.what_i_saw,
     counts: { items: parsed.items.length, placed: entries.filter((e) => e.placed).length, unplaced: entries.filter((e) => !e.placed).length },
