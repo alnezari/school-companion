@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-nunito), var(--font-plex), system-ui, sans-serif;
+  --font-body: var(--font-plex), system-ui, sans-serif;
+  --color-paper: #F5F7FA;
+  --color-ink: #182230;
+  --color-ink-2: #4A5568;
+  --color-line: #D9DFE7;
+  --color-accent: #2457C5;
+  --color-accent-soft: #E3ECFB;
+  --color-red: #C8321E;
+  --color-red-soft: #FBE6E2;
+  --color-orange: #D67A00;
+  --color-orange-soft: #FFF0D6;
+  --color-green: #1E8E4E;
+  --color-green-soft: #DDF3E5;
+  --color-kid: #FFF7E6;
+}
+
+html { color-scheme: light; }
+body { font-family: var(--font-body); background: var(--color-paper); color: var(--color-ink); -webkit-tap-highlight-color: transparent; }
+.font-display { font-family: var(--font-display); }
+button { cursor: pointer; }
+
+@keyframes pop { 0% { transform: scale(.4); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes rise { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes confetti { 0% { transform: translateY(-10vh) rotate(0); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+.pop { animation: pop .45s cubic-bezier(.2,.9,.3,1.4) both; }
+.rise { animation: rise .35s ease-out both; }
+.confetti span { position: fixed; top: 0; width: 10px; height: 16px; animation: confetti 2.4s linear forwards; }
+@media (prefers-reduced-motion: reduce) { .pop, .rise, .confetti span { animation: none; } }

@@ -1,0 +1,61 @@
+export type Lang = "en" | "ar";
+export const DAY_NAMES = {
+  en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
+  ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"],
+};
+export const DAY_SHORT = { en: ["Sun", "Mon", "Tue", "Wed", "Thu"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"] };
+
+const dict = {
+  en: {
+    hi: "Hi", tomorrowIs: "Tomorrow is", classes: "classes", homework: "homework", toPrepare: "to get ready",
+    noPlanTitle: "No plan for tomorrow yet", noPlanBody: "Enjoy your day! When the school sends the plan it will show up here.",
+    emptyCard: "No new lesson — get your book and things ready!", allDone: "Everything is ready for tomorrow! 🎉",
+    tapToOpen: "Tap to open", parents: "Parents", tomorrow: "Tomorrow", stars: "My stars",
+    lessonAbout: "What the lesson is about", pages: "Pages in your book", canDo: "By the end you should be able to…",
+    activity: "Activity", links: "Videos and games", homeworkTitle: "Homework", practice: "Practice",
+    study: "I'm going to study this", done: "I finished!", markedDone: "Done ✓", undo: "Not done yet", close: "Close",
+    pinTitle: "Parents only", pinBody: "Enter the parent PIN", pinWrong: "That's not it", enter: "Enter", cancel: "Cancel",
+    parentTitle: "Week", today: "Today", classesShort: "classes", hwShort: "homework", completed: "completed",
+    upload: "Upload weekly plan", original: "Open original document", noWeek: "No plan uploaded for this week.",
+    notMatched: "Not matched to a period", otherItems: "Other items from the plan", empty: "Empty — nothing in the plan",
+    confidence: { green: "Everything matched the timetable", orange: "Some things did not line up — tap to read", red: "Something is wrong with this week — tap to read" },
+    topic: "Topic", lesson: "Lesson", objectives: "Objectives", extra: "Other text", teacher: "Teacher", raw: "Original text",
+    needsParent: "Needs you at home", feeling: { easy: "Easy", ok: "OK", hard: "Hard" }, notStarted: "Not started",
+    valueOfWeek: "Value of the week", weekOf: "Week", logout: "Sign out", settings: "Settings", changePin: "Parent PIN", save: "Save", saved: "Saved",
+    uploadTitle: "Upload the weekly plan", uploadBody: "Pick the PDF or photo the school sent. Reading takes one to two minutes. The original is always kept.",
+    choose: "Choose file", reading: "Reading the document with Claude…", stored: "Document stored. Reading…",
+    uploadDone: "Week saved", uploadFail: "Nothing was changed", backToWeek: "Back to the week", issues: "Notes from the reader",
+    detected: "Dates mentioned in the plan", sawInstead: "What the reader saw", modelUsed: "Reader", tryAgain: "Try another file", childName: "Child's name",
+    howFelt: "How did it feel?", feelEasy: "Easy", feelEasySub: "I understood it well", feelOk: "OK", feelOkSub: "I mostly got it", feelHard: "Hard", feelHardSub: "I need help with this",
+    starsTitle: "My stars", totalStars: "stars collected", fullDays: "Full days", fullWeeks: "Full weeks", streak: "Days in a row", starsPerWeek: "Stars each week", keepGoing: "Every finished lesson is a star. Keep going!", noStarsYet: "Finish a lesson to earn your first star!",
+    timetable: "Timetable", uploadTimetable: "Upload new timetable", validFrom: "Valid from", ttNote: "Weeks uploaded before this keep their old timetable. Re-upload the current plan to place it with the new one.",
+    subject: "Subject", ttUploaded: "Timetable saved", periodsRead: "periods read", ttBody: "Pick the picture or PDF of the grid the school sent. Tap any period below to fix it by hand.", ttReading: "Reading the timetable with Claude…",
+  },
+  ar: {
+    hi: "أهلًا", tomorrowIs: "غدًا", classes: "حصص", homework: "واجب", toPrepare: "للتجهيز",
+    noPlanTitle: "لا توجد خطة للغد بعد", noPlanBody: "استمتع بيومك! عندما ترسل المدرسة الخطة ستظهر هنا.",
+    emptyCard: "لا يوجد درس جديد — جهّز كتابك وأدواتك!", allDone: "كل شيء جاهز للغد! 🎉",
+    tapToOpen: "اضغط للفتح", parents: "الوالدان", tomorrow: "الغد", stars: "نجومي",
+    lessonAbout: "موضوع الدرس", pages: "الصفحات في كتابك", canDo: "في النهاية ستستطيع أن…",
+    activity: "نشاط", links: "فيديوهات وألعاب", homeworkTitle: "الواجب", practice: "تدريب",
+    study: "سأذاكر هذا", done: "أنهيت!", markedDone: "تم ✓", undo: "لم يتم بعد", close: "إغلاق",
+    pinTitle: "للوالدين فقط", pinBody: "أدخل رمز الوالدين", pinWrong: "الرمز غير صحيح", enter: "دخول", cancel: "إلغاء",
+    parentTitle: "الأسبوع", today: "اليوم", classesShort: "حصص", hwShort: "واجب", completed: "مكتمل",
+    upload: "رفع الخطة الأسبوعية", original: "فتح المستند الأصلي", noWeek: "لم تُرفع خطة لهذا الأسبوع.",
+    notMatched: "لم يُطابق أي حصة", otherItems: "عناصر أخرى من الخطة", empty: "فارغة — لا شيء في الخطة",
+    confidence: { green: "كل شيء طابق الجدول", orange: "بعض الأمور لم تتطابق — اضغط للقراءة", red: "هناك خطأ في هذا الأسبوع — اضغط للقراءة" },
+    topic: "الموضوع", lesson: "الدرس", objectives: "الأهداف", extra: "نص آخر", teacher: "المعلمة", raw: "النص الأصلي",
+    needsParent: "يحتاج متابعتكم في البيت", feeling: { easy: "سهل", ok: "متوسط", hard: "صعب" }, notStarted: "لم يبدأ",
+    valueOfWeek: "قيمة الأسبوع", weekOf: "أسبوع", logout: "تسجيل الخروج", settings: "الإعدادات", changePin: "رمز الوالدين", save: "حفظ", saved: "تم الحفظ",
+    uploadTitle: "رفع الخطة الأسبوعية", uploadBody: "اختر ملف PDF أو صورة الخطة التي أرسلتها المدرسة. القراءة تستغرق دقيقة إلى دقيقتين. المستند الأصلي يُحفظ دائمًا.",
+    choose: "اختيار ملف", reading: "جارٍ قراءة المستند بواسطة Claude…", stored: "تم حفظ المستند. جارٍ القراءة…",
+    uploadDone: "تم حفظ الأسبوع", uploadFail: "لم يتغير شيء", backToWeek: "العودة إلى الأسبوع", issues: "ملاحظات القارئ",
+    detected: "تواريخ ذُكرت في الخطة", sawInstead: "ما رآه القارئ", modelUsed: "القارئ", tryAgain: "جرّب ملفًا آخر", childName: "اسم الطفل",
+    howFelt: "كيف كان؟", feelEasy: "سهل", feelEasySub: "فهمته جيدًا", feelOk: "متوسط", feelOkSub: "فهمت معظمه", feelHard: "صعب", feelHardSub: "أحتاج مساعدة",
+    starsTitle: "نجومي", totalStars: "نجمة جمعتها", fullDays: "أيام كاملة", fullWeeks: "أسابيع كاملة", streak: "أيام متتالية", starsPerWeek: "النجوم كل أسبوع", keepGoing: "كل درس تنهيه نجمة. استمر!", noStarsYet: "أنهِ درسًا لتحصل على أول نجمة!",
+    timetable: "الجدول", uploadTimetable: "رفع جدول جديد", validFrom: "ساري من", ttNote: "الأسابيع المرفوعة قبل هذا تبقى على جدولها القديم. أعد رفع خطة الأسبوع الحالي لترتيبها على الجدول الجديد.",
+    subject: "المادة", ttUploaded: "تم حفظ الجدول", periodsRead: "حصة قُرئت", ttBody: "اختر صورة أو PDF الجدول الذي أرسلته المدرسة. اضغط أي حصة أدناه لتصحيحها يدويًا.", ttReading: "جارٍ قراءة الجدول بواسطة Claude…",
+  },
+};
+export type Dict = typeof dict.en;
+export function t(lang: Lang): Dict { return dict[lang] as Dict; }
