@@ -10,7 +10,6 @@ import type { Period } from "@/lib/placement";
 import { SUBJECTS, type SubjectKey } from "@/lib/subjects";
 import { LangToggle } from "@/components/LangToggle";
 import { isParentUnlocked } from "@/components/ParentGate";
-import { ParentNav } from "@/components/ParentNav";
 
 type Result = { ok?: boolean; error?: string; message?: string; problems?: string[]; issues?: { en: string; ar: string }[]; count?: number; what_i_saw?: string; storagePath?: string };
 
@@ -60,11 +59,10 @@ export default function TimetablePage() {
     <main className="min-h-dvh px-3 pb-10 pt-3 sm:px-6">
       <div className="mx-auto max-w-3xl">
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/parent" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">←</Link>
+          <Link href="/parent/settings" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">←</Link>
           <h1 className="font-display text-xl font-extrabold">🗓 {d.timetable}</h1>
           <LangToggle lang={lang} setLang={setLang} className="ms-auto" />
         </div>
-        <ParentNav active="timetable" d={d} />
         {tt && (
           <p className="mt-2 text-sm text-ink-2">{tt.name} · {d.validFrom} {tt.valid_from}
             {docUrl && <> · <a href={docUrl} target="_blank" rel="noreferrer" className="font-semibold text-accent underline">📎 {d.original}</a></>}

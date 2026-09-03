@@ -2,10 +2,10 @@
 import Link from "next/link";
 import type { Dict } from "@/lib/i18n";
 
-export function ParentNav({ active, d }: { active: "week" | "weeks" | "calendar" | "timetable"; d: Dict }) {
+export function ParentNav({ active, d }: { active: "week" | "weeks" | "calendar" | "settings"; d: Dict }) {
   const items: [typeof active, string, string][] = [
     ["week", "/parent", `📅 ${d.currentWeek}`], ["weeks", "/parent/weeks", `🗂 ${d.weeks}`],
-    ["calendar", "/parent/calendar", `📆 ${d.calendar}`], ["timetable", "/parent/timetable", `🗓 ${d.timetable}`],
+    ["calendar", "/parent/calendar", `📆 ${d.calendar}`], ["settings", "/parent/settings", `⚙ ${d.settings}`],
   ];
   return (
     <nav className="mt-2 grid grid-cols-4 gap-1.5">

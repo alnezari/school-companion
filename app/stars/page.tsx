@@ -98,7 +98,8 @@ export default function StarsPage() {
       )}
 
       <nav className="mx-auto mt-6 flex max-w-6xl gap-2">
-        <Link href="/" className="flex-1 rounded-2xl bg-white py-3 text-center font-display text-lg font-extrabold">📅 {d.tomorrow}</Link>
+        <Link href="/" className="rounded-2xl bg-white px-4 py-3 text-center font-display text-lg font-extrabold">🏠</Link>
+        <Link href="/school" className="flex-1 rounded-2xl bg-white py-3 text-center font-display text-lg font-extrabold">📚 {d.tomorrow}</Link>
         <span className="flex-1 rounded-2xl bg-[#F27D26] py-3 text-center font-display text-lg font-extrabold text-white">⭐ {d.stars}</span>
       </nav>
     </main>

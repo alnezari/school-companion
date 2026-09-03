@@ -41,7 +41,7 @@ export default function UploadPage() {
     <main className="min-h-dvh px-4 py-4">
       <div className="mx-auto max-w-xl">
         <div className="flex items-center gap-2">
-          <Link href="/parent" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">←</Link>
+          <Link href="/parent/settings" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">←</Link>
           <h1 className="font-display text-xl font-extrabold">{d.uploadTitle}</h1>
           <LangToggle lang={lang} setLang={setLang} className="ms-auto" />
         </div>

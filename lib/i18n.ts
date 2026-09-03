@@ -4,6 +4,8 @@ export const DAY_NAMES = {
   ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"],
 };
 export const DAY_SHORT = { en: ["Sun", "Mon", "Tue", "Wed", "Thu"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"] };
+export const DAY_SHORT7 = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] };
+export const DAY_NAMES7 = { en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] };
 
 const dict = {
   en: {
@@ -33,6 +35,13 @@ const dict = {
     addEvent: "Add event", editEvent: "Edit", deleteEvent: "Delete", title: "Title", date: "Date", kind: "Type", noSubject: "No subject",
     kinds: { holiday: "Holiday", exam: "Exam", due: "Due", event: "Event" }, daysAway: "days away", tomorrowLabel: "tomorrow", todayLabel: "today", past: "Past", upcoming: "Coming up", noEvents: "Nothing on the calendar yet.",
     fromPlan: "from the weekly plan", confirmDelete: "Delete this event?", noWeeks: "No weeks uploaded yet.", uploadedOn: "read on",
+    schoolApp: "School plan", schoolAppSub: "What's tomorrow", dayApp: "My day", dayAppSub: "Plan your afternoon", myDay: "My day", todayStars: "today",
+    homeAt: "home at", bedAt: "bed at", wakeAt: "wake at", addHere: "Add here", addToDay: "Add to my day", pickLength: "How long?", minutes: "min", addIt: "Add", remove: "Remove",
+    doneStar: "Done", notYet: "Not yet", usedToday: "used today", leftToday: "left today", fixedLabel: "fixed", opensSchool: "opens the school plan", nothingPlanned: "Tap a gap to add something!", now: "now",
+    dayTitle: "Taym's day", dayWindow: "Day window", schoolDays: "School days", weekend: "Friday & Saturday", fixedBlocks: "Fixed blocks", fixedSub: "He cannot move these", basket: "Basket", basketSub: "What he can add himself",
+    addBlock: "Add block", addActivity: "Add activity", name: "Name", icon: "Icon", category: "Category", start: "Start", length: "Length", days: "Days", repeat: "Repeat", weekly: "Every week", once: "Once, on", starsLabel: "Stars",
+    durationsLabel: "Allowed lengths (minutes)", maxPerDay: "Max minutes per day", noLimit: "no limit", skipToday: "Skip today", skipped: "Skipped today", unskip: "Restore", opensSchoolLabel: "Opens the school plan", delete: "Delete",
+    cats: { sport: "Sport", learning: "Learning", creative: "Creative", screen: "Screen", home: "Home", rest: "Rest", study: "Study" },
     subject: "Subject", ttUploaded: "Timetable saved", periodsRead: "periods read", ttBody: "Pick the picture or PDF of the grid the school sent. Tap any period below to fix it by hand.", ttReading: "Reading the timetable with Claude…",
   },
   ar: {
@@ -62,6 +71,13 @@ const dict = {
     addEvent: "إضافة حدث", editEvent: "تعديل", deleteEvent: "حذف", title: "العنوان", date: "التاريخ", kind: "النوع", noSubject: "بدون مادة",
     kinds: { holiday: "إجازة", exam: "اختبار", due: "تسليم", event: "حدث" }, daysAway: "يومًا متبقيًا", tomorrowLabel: "غدًا", todayLabel: "اليوم", past: "سابق", upcoming: "القادم", noEvents: "لا شيء في التقويم بعد.",
     fromPlan: "من الخطة الأسبوعية", confirmDelete: "حذف هذا الحدث؟", noWeeks: "لم تُرفع أي أسابيع بعد.", uploadedOn: "قُرئ في",
+    schoolApp: "خطة المدرسة", schoolAppSub: "ماذا غدًا", dayApp: "يومي", dayAppSub: "خطط عصرك", myDay: "يومي", todayStars: "اليوم",
+    homeAt: "البيت", bedAt: "النوم", wakeAt: "الاستيقاظ", addHere: "أضف هنا", addToDay: "أضف إلى يومي", pickLength: "كم دقيقة؟", minutes: "د", addIt: "إضافة", remove: "إزالة",
+    doneStar: "تم", notYet: "ليس بعد", usedToday: "استُخدم اليوم", leftToday: "متبقٍ اليوم", fixedLabel: "ثابت", opensSchool: "يفتح خطة المدرسة", nothingPlanned: "اضغط على فراغ لتضيف شيئًا!", now: "الآن",
+    dayTitle: "يوم تيم", dayWindow: "نافذة اليوم", schoolDays: "أيام الدراسة", weekend: "الجمعة والسبت", fixedBlocks: "الأشياء الثابتة", fixedSub: "لا يستطيع تحريكها", basket: "السلة", basketSub: "ما يستطيع إضافته بنفسه",
+    addBlock: "إضافة ثابت", addActivity: "إضافة نشاط", name: "الاسم", icon: "الأيقونة", category: "الفئة", start: "البداية", length: "المدة", days: "الأيام", repeat: "التكرار", weekly: "كل أسبوع", once: "مرة واحدة في", starsLabel: "النجوم",
+    durationsLabel: "المدد المسموحة (دقائق)", maxPerDay: "الحد الأقصى يوميًا (دقائق)", noLimit: "بلا حد", skipToday: "إلغاء اليوم", skipped: "ملغى اليوم", unskip: "إرجاع", opensSchoolLabel: "يفتح خطة المدرسة", delete: "حذف",
+    cats: { sport: "رياضة", learning: "تعلّم", creative: "إبداع", screen: "شاشة", home: "البيت", rest: "راحة", study: "مذاكرة" },
     subject: "المادة", ttUploaded: "تم حفظ الجدول", periodsRead: "حصة قُرئت", ttBody: "اختر صورة أو PDF الجدول الذي أرسلته المدرسة. اضغط أي حصة أدناه لتصحيحها يدويًا.", ttReading: "جارٍ قراءة الجدول بواسطة Claude…",
   },
 };

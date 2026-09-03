@@ -8,7 +8,7 @@ import { todayISO, schoolDay, weekStartFor, addDays, formatDate } from "@/lib/sc
 import { buildDay, homeworkCount, loadEntries, loadPeriods, loadProgress, loadWeekByStart, pkey, signedUrl, subscribeProgress, type Entry, type ProgressMap, type WeekRow } from "@/lib/data";
 import { ParentNav } from "@/components/ParentNav";
 import type { Period } from "@/lib/placement";
-import { SUBJECTS, PLAN_SUBJECT_LABEL, type SubjectKey, type PlanSubject } from "@/lib/subjects";
+import { SUBJECTS, PLAN_SUBJECT_LABEL, subjectName, type SubjectKey, type PlanSubject } from "@/lib/subjects";
 import { LangToggle } from "@/components/LangToggle";
 import { isParentUnlocked } from "@/components/ParentGate";
 
@@ -70,7 +70,6 @@ export default function ParentPage() {
         <h1 className="font-display text-xl font-extrabold">{d.parentTitle} {week?.week_number ?? ""} {weekStart && <span className="text-ink-2 text-base font-normal">· {formatDate(weekStart, lang)} – {formatDate(addDays(weekStart, 4), lang)}</span>}</h1>
         <div className="ms-auto flex items-center gap-2">
           <LangToggle lang={lang} setLang={setLang} />
-          <Link href="/parent/settings" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">⚙</Link>
           <Link href="/" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">🎒</Link>
         </div>
       </header>
@@ -92,10 +91,8 @@ export default function ParentPage() {
           ))}
         </div>
 
-        <Link href="/parent/upload" className="mt-3 block rounded-2xl bg-accent px-4 py-3 text-center font-semibold text-white">📄 {d.upload}</Link>
-
         {loading || !weekStart ? <p className="mt-6 text-center text-ink-2">…</p> : !week ? (
-          <p className="mt-6 rounded-2xl bg-white p-6 text-center text-ink-2">{d.noWeek}</p>
+          <div className="mt-6 rounded-2xl bg-white p-6 text-center text-ink-2">{d.noWeek}<br /><Link href="/parent/upload" className="mt-3 inline-block rounded-xl bg-accent px-4 py-2 font-semibold text-white">📄 {d.upload}</Link></div>
         ) : (
           <>
             {week.value_of_week && (week.value_of_week.arabic || week.value_of_week.english) && (
@@ -119,23 +116,23 @@ export default function ParentPage() {
                 const isOpen = openSlot === period.slot;
                 return (
                   <div key={period.slot} className={`rounded-xl border bg-white ${isOpen ? "border-accent" : "border-line"}`}>
-                    <button onClick={() => setOpenSlot(isOpen ? null : period.slot)} className="grid w-full grid-cols-[24px_64px_1fr_auto] items-center gap-2 px-3 py-2 text-start tabular-nums">
+                    <button onClick={() => setOpenSlot(isOpen ? null : period.slot)} className="grid w-full grid-cols-[24px_64px_1fr_14px] items-center gap-2 px-3 py-2 text-start tabular-nums">
                       <span className="font-bold text-ink-2">{period.slot}</span>
                       <span className="text-xs text-ink-2">{period.start_time.slice(0, 5)}–{period.end_time.slice(0, 5)}</span>
                       <span>
-                        <span className="font-semibold" style={{ color: meta.color }}>{meta.icon} {meta[lang]}</span>
-                        <span className="block text-xs text-ink-2" dir="auto">{entry ? ([entry.lesson, entry.topic].find(Boolean) as string) || entry.raw_text.slice(0, 60) : d.empty}</span>
+                        <span className="font-semibold" style={{ color: meta.color }} dir="auto">{meta.icon} {subjectName(period.subject_key)}</span>
+                        <span className="block text-xs text-ink-2">{period.teacher ?? ""}</span>
                       </span>
-                      <span className="flex flex-col items-end gap-1">
-                        {entry?.homework && <span className="rounded-full bg-red-soft px-2 py-0.5 text-[11px] font-bold text-red">{d.hwShort}</span>}
-                        {pr?.done_at
-                          ? <span className="rounded-full bg-green-soft px-2 py-0.5 text-[11px] font-bold text-green">✓{pr.feeling ? ` ${d.feeling[pr.feeling]} ${feelingPct[pr.feeling]}%` : ""}</span>
-                          : <span className="rounded-full bg-line px-2 py-0.5 text-[11px] font-bold text-ink-2">{d.notStarted}</span>}
-                      </span>
+                      <span className={`h-2.5 w-2.5 justify-self-end rounded-full ${pr?.done_at ? "bg-green" : entry?.homework ? "bg-red" : "bg-line"}`} />
                     </button>
                     {isOpen && (
                       <div className="border-t border-line px-3 py-3 text-sm">
-                        <div className="mb-2 text-xs text-ink-2">{d.teacher}: {period.teacher ?? "—"}</div>
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                          {entry?.homework && <span className="rounded-full bg-red-soft px-2 py-0.5 text-[11px] font-bold text-red">{d.hwShort}</span>}
+                          {pr?.done_at
+                            ? <span className="rounded-full bg-green-soft px-2 py-0.5 text-[11px] font-bold text-green">✓{pr.feeling ? ` ${d.feeling[pr.feeling]} ${feelingPct[pr.feeling]}%` : ""}</span>
+                            : <span className="rounded-full bg-line px-2 py-0.5 text-[11px] font-bold text-ink-2">{d.notStarted}</span>}
+                        </div>
                         {entry ? <Parts entry={entry} d={d} /> : <p className="text-ink-2">{d.empty}</p>}
                       </div>
                     )}

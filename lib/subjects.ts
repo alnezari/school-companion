@@ -56,3 +56,11 @@ export function subjectLabel(key: string, lang: "en" | "ar") {
   const m = SUBJECTS[key as SubjectKey];
   return m ? m[lang] : key;
 }
+
+/** Subjects taught in Arabic keep Arabic names; everything else keeps English, whatever the app language. */
+export const ARABIC_TAUGHT: SubjectKey[] = ["arabic", "islamic", "anoos"];
+export function subjectName(key: string): string {
+  const m = SUBJECTS[key as SubjectKey];
+  if (!m) return key;
+  return ARABIC_TAUGHT.includes(key as SubjectKey) ? m.ar : m.en;
+}

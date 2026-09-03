@@ -2,14 +2,14 @@
 import { useState } from "react";
 import type { Entry } from "@/lib/data";
 import type { Period } from "@/lib/placement";
-import { SUBJECTS, type SubjectKey } from "@/lib/subjects";
+import { SUBJECTS, subjectName, type SubjectKey } from "@/lib/subjects";
 import type { Dict, Lang } from "@/lib/i18n";
 
 function hostOf(l: string) { try { return new URL(l).hostname; } catch { return l; } }
 export function LessonSheet({ period, entry, done, lang, d, onClose, onDone }:
   { period: Period; entry: Entry | null; done: boolean; lang: Lang; d: Dict; onClose: () => void; onDone: (done: boolean, feeling?: "easy" | "ok" | "hard") => void }) {
   const meta = SUBJECTS[period.subject_key as SubjectKey];
-  const [step, setStep] = useState<"idle" | "studying" | "feeling">("idle");
+  const [step, setStep] = useState<"idle" | "feeling">("idle");
   const Part = ({ label, text, big = false, red = false }: { label: string; text: string | null; big?: boolean; red?: boolean }) =>
     !text ? null : (
       <section className={`rounded-2xl p-4 ${red ? "bg-red-soft" : "bg-paper"}`}>
@@ -25,7 +25,7 @@ export function LessonSheet({ period, entry, done, lang, d, onClose, onDone }:
         <div className="flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-2xl text-2xl text-white" style={{ background: meta.color }}>{meta.icon}</span>
           <div className="flex-1">
-            <div className="font-display text-xl font-extrabold">{meta[lang]}</div>
+            <div className="font-display text-xl font-extrabold">{subjectName(period.subject_key)}</div>
             <div className="text-sm text-ink-2">{period.start_time.slice(0, 5)} – {period.end_time.slice(0, 5)}</div>
           </div>
           <button onClick={onClose} className="rounded-full bg-paper px-3 py-1 text-sm font-semibold">{d.close}</button>
@@ -75,10 +75,8 @@ export function LessonSheet({ period, entry, done, lang, d, onClose, onDone }:
                 ))}
               </div>
             </div>
-          ) : step === "studying" ? (
-            <button onClick={() => setStep("feeling")} className="w-full rounded-2xl bg-green py-4 font-display text-xl font-extrabold text-white">✅ {d.done}</button>
           ) : (
-            <button onClick={() => setStep("studying")} className="w-full rounded-2xl py-4 font-display text-xl font-extrabold text-white" style={{ background: meta.color }}>📖 {d.study}</button>
+            <button onClick={() => setStep("feeling")} className="w-full rounded-2xl bg-green py-4 font-display text-xl font-extrabold text-white">✅ {d.done}</button>
           )}
         </div>
       </div>

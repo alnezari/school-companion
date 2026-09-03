@@ -1,0 +1,5 @@
+-- Daily plan: basket of activities, parent-fixed blocks, the child's placed cards. Applied as migration "daily_plan".
+-- activities(name_en,name_ar,icon,category,durations int[],stars,max_minutes_per_day,active,sort)
+-- fixed_blocks(name_en,name_ar,icon,category,start_time,minutes,days smallint[],repeat weekly|once,on_date,stars,opens_school,active)
+-- block_skips(block_id,date)   day_items(date,activity_id|block_id,start_time,minutes,done_at)
+-- settings: day_home_time 14:00, day_bed_time 19:30, day_weekend_wake 09:00
