@@ -1,5 +1,7 @@
--- Daily plan: basket of activities, parent-fixed blocks, the child's placed cards. Applied as migration "daily_plan".
--- activities(name_en,name_ar,icon,category,durations int[],stars,max_minutes_per_day,active,sort)
--- fixed_blocks(name_en,name_ar,icon,category,start_time,minutes,days smallint[],repeat weekly|once,on_date,stars,opens_school,active)
--- block_skips(block_id,date)   day_items(date,activity_id|block_id,start_time,minutes,done_at)
+-- Daily plan. Applied as migrations "daily_plan" then "one_activity_list".
+-- categories(key pk, name_en, name_ar, color, sort)
+-- activities(id, name_en, name_ar, icon, category -> categories, durations int[], stars, max_minutes_per_day, active, sort,
+--            fixed, start_time, minutes, days smallint[], repeat weekly|once, on_date, locked)
+--   fixed = appears on the day by itself at start_time; locked = the child cannot move it. Otherwise it sits in the basket with its durations.
+-- activity_skips(activity_id, date)   day_items(id, date, activity_id, start_time, minutes, done_at)  (realtime on)
 -- settings: day_home_time 14:00, day_bed_time 19:30, day_weekend_wake 09:00

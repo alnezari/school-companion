@@ -7,12 +7,11 @@ import { nextSchoolDay, schoolDay, formatDate } from "@/lib/schedule";
 import { buildDay, homeworkCount, loadEntries, loadPeriods, loadProgress, loadSettings, loadWeekFor, pkey, setProgress, subscribeProgress, type Entry, type ProgressMap, type WeekRow } from "@/lib/data";
 import type { Period } from "@/lib/placement";
 import { SUBJECTS, subjectName, type SubjectKey } from "@/lib/subjects";
-import { LangToggle } from "@/components/LangToggle";
-import { ParentGate } from "@/components/ParentGate";
+import { KidTop } from "@/components/KidTop";
 import { LessonSheet } from "@/components/LessonSheet";
 
 export default function KidPage() {
-  const [lang, setLang] = useLang("kid");
+  const [lang] = useLang("kid");
   const d = t(lang);
   const [target, setTarget] = useState<string | null>(null);
   useEffect(() => { setTarget(nextSchoolDay()); }, []);
@@ -25,7 +24,6 @@ export default function KidPage() {
   const [progress, setProgressMap] = useState<ProgressMap>({});
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [openSlot, setOpenSlot] = useState<number | null>(null);
-  const [gate, setGate] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
 
   useEffect(() => {
@@ -66,16 +64,8 @@ export default function KidPage() {
 
   return (
     <main className="min-h-dvh bg-kid px-4 pb-8 pt-4 sm:px-6 lg:px-10">
-      <header className="mx-auto flex max-w-6xl items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl font-extrabold sm:text-4xl">{d.hi} {name} 👋</h1>
-          <p className="text-lg text-ink-2">{target && <>{d.tomorrowIs} <b className="text-ink">{DAY_NAMES[lang][day]}</b>, {formatDate(target, lang)}</>}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <LangToggle lang={lang} setLang={setLang} />
-          <button onClick={() => setGate(true)} className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold text-ink-2">🔒 {d.parents}</button>
-        </div>
-      </header>
+      <KidTop className="max-w-6xl" title={<>{d.hi} {name} 👋</>} stars={doneCount}
+        sub={target && <>{d.tomorrowIs} <b className="text-ink">{DAY_NAMES[lang][day]}</b>, {formatDate(target, lang)}</>} />
 
       {loading ? (
         <p className="mx-auto mt-10 max-w-6xl text-center text-ink-2">…</p>
@@ -114,14 +104,14 @@ export default function KidPage() {
             })}
           </div>
           {doneCount > 0 && (
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="mt-4 flex flex-wrap gap-2">
               {slots.filter((s) => !!progress[pkey(day, s.period.slot)]?.done_at).map(({ period }) => {
                 const meta = SUBJECTS[period.subject_key as SubjectKey];
                 return (
-                  <button key={period.slot} onClick={() => setOpenSlot(period.slot)} className="flex items-center gap-2 rounded-2xl border-2 bg-white/70 px-3 py-2 text-start opacity-75" style={{ borderColor: meta.color }}>
-                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg font-display text-sm font-extrabold text-white" style={{ background: meta.color }}>{period.slot}</span>
-                    <span className="flex-1 truncate font-display text-sm font-bold text-ink-2 line-through" dir="auto">{subjectName(period.subject_key)}</span>
-                    <span className="pop">⭐</span>
+                  <button key={period.slot} onClick={() => setOpenSlot(period.slot)} className="pop flex items-center gap-2 rounded-full py-1.5 pe-3 ps-1.5 font-display text-sm font-extrabold text-white shadow-sm" style={{ background: meta.color }}>
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-white/25">{meta.icon}</span>
+                    <span dir="auto">{subjectName(period.subject_key)}</span>
+                    <span>⭐</span>
                   </button>
                 );
               })}
@@ -130,17 +120,11 @@ export default function KidPage() {
         </div>
       )}
 
-      <nav className="mx-auto mt-6 flex max-w-6xl gap-2">
-        <Link href="/" className="rounded-2xl bg-white px-4 py-3 text-center font-display text-lg font-extrabold">🏠</Link>
-        <span className="flex-1 rounded-2xl bg-[#F27D26] py-3 text-center font-display text-lg font-extrabold text-white">📚 {d.tomorrow}</span>
-        <Link href="/stars" className="flex-1 rounded-2xl bg-white py-3 text-center font-display text-lg font-extrabold">⭐ {d.stars}</Link>
-      </nav>
 
       {open && week && (
         <LessonSheet period={open.period} entry={open.entry} done={!!progress[pkey(day, open.period.slot)]?.done_at} lang={lang} d={d}
           onClose={() => setOpenSlot(null)} onDone={(v, f) => mark(open.period.slot, v, f)} />
       )}
-      {gate && <ParentGate pin={settings.parent_pin || "1234"} d={d} onClose={() => setGate(false)} />}
       {celebrate && (
         <div className="confetti pointer-events-none fixed inset-0 z-30" onAnimationEnd={() => setCelebrate(false)}>
           {Array.from({ length: 40 }).map((_, i) => (

@@ -6,7 +6,6 @@ import { useLang } from "@/lib/lang";
 import { t } from "@/lib/i18n";
 import { signedUrl } from "@/lib/data";
 import { isParentUnlocked } from "@/components/ParentGate";
-import { LangToggle } from "@/components/LangToggle";
 
 type Result = { ok?: boolean; error?: string; message?: string; problems?: string[]; storagePath?: string; confidence?: string;
   issues?: { en: string; ar: string }[]; what_i_saw?: string; counts?: { items: number; placed: number; unplaced: number };
@@ -14,7 +13,7 @@ type Result = { ok?: boolean; error?: string; message?: string; problems?: strin
 
 export default function UploadPage() {
   const router = useRouter();
-  const [lang, setLang] = useLang("parent");
+  const [lang] = useLang("parent");
   const d = t(lang);
   const [file, setFile] = useState<File | null>(null);
   const [phase, setPhase] = useState<"idle" | "sending" | "reading" | "done">("idle");
@@ -41,9 +40,8 @@ export default function UploadPage() {
     <main className="min-h-dvh px-4 py-4">
       <div className="mx-auto max-w-xl">
         <div className="flex items-center gap-2">
-          <Link href="/parent/settings" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">←</Link>
+          <Link href="/parent/school" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">←</Link>
           <h1 className="font-display text-xl font-extrabold">{d.uploadTitle}</h1>
-          <LangToggle lang={lang} setLang={setLang} className="ms-auto" />
         </div>
         <p className="mt-2 text-ink-2">{d.uploadBody}</p>
 
@@ -74,7 +72,7 @@ export default function UploadPage() {
             )}
             {docUrl && <a href={docUrl} target="_blank" rel="noreferrer" className="mt-3 block text-sm font-semibold text-accent underline">📎 {d.original}</a>}
             <div className="mt-4 flex gap-2">
-              <Link href="/parent" className="flex-1 rounded-xl bg-accent py-2 text-center font-semibold text-white">{d.backToWeek}</Link>
+              <Link href="/parent/school" className="flex-1 rounded-xl bg-accent py-2 text-center font-semibold text-white">{d.backToWeek}</Link>
               <button onClick={() => { setPhase("idle"); setFile(null); setResult(null); }} className="flex-1 rounded-xl border border-line py-2 font-semibold">{d.tryAgain}</button>
             </div>
           </div>

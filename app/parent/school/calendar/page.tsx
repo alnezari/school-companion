@@ -7,7 +7,6 @@ import { t } from "@/lib/i18n";
 import { todayISO, formatDate, weekday } from "@/lib/schedule";
 import { deleteEvent, loadEvents, saveEvent, type EventRow } from "@/lib/data";
 import { SUBJECTS, type SubjectKey } from "@/lib/subjects";
-import { LangToggle } from "@/components/LangToggle";
 import { ParentNav } from "@/components/ParentNav";
 import { isParentUnlocked } from "@/components/ParentGate";
 
@@ -20,7 +19,7 @@ const empty = { title: "", date: "", kind: "event" as EventRow["kind"], subject_
 
 export default function CalendarPage() {
   const router = useRouter();
-  const [lang, setLang] = useLang("parent");
+  const [lang] = useLang("parent");
   const d = t(lang);
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [today, setToday] = useState("");
@@ -83,8 +82,7 @@ export default function CalendarPage() {
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center gap-2">
           <h1 className="font-display text-xl font-extrabold">📆 {d.calendar}</h1>
-          <LangToggle lang={lang} setLang={setLang} className="ms-auto" />
-          <Link href="/" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">🎒</Link>
+          <span className="ms-auto"><Link href="/parent" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">🏠</Link></span>
         </div>
         <ParentNav active="calendar" d={d} />
 

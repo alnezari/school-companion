@@ -3,19 +3,21 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLang } from "@/lib/lang";
 import { t } from "@/lib/i18n";
-import { LangToggle } from "@/components/LangToggle";
+import { KidTop } from "@/components/KidTop";
+import { loadDayStars } from "@/lib/day";
 import { loadAllPeriodCounts, loadAllProgress, loadSettings, type ProgressWithWeek } from "@/lib/data";
 import { addDays, todayISO, weekday, formatDate } from "@/lib/schedule";
 
 // Always encouraging: counts stars, full days, full weeks and streaks. Never scores, never "behind", never what comes later.
 export default function StarsPage() {
-  const [lang, setLang] = useLang("kid");
+  const [lang] = useLang("kid");
   const d = t(lang);
   const [rows, setRows] = useState<ProgressWithWeek[] | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [name, setName] = useState("");
+  const [dayStars, setDayStars] = useState(0);
   useEffect(() => {
-    Promise.all([loadAllProgress(), loadAllPeriodCounts(), loadSettings()]).then(([r, c, s]) => { setRows(r); setCounts(c); setName(s.child_name || ""); });
+    Promise.all([loadAllProgress(), loadAllPeriodCounts(), loadSettings(), loadDayStars()]).then(([r, c, s, ds]) => { setRows(r); setCounts(c); setName(s.child_name || ""); setDayStars(ds); });
   }, []);
 
   const stats = useMemo(() => {
@@ -59,16 +61,14 @@ export default function StarsPage() {
 
   return (
     <main className="min-h-dvh bg-kid px-4 pb-8 pt-4 sm:px-6 lg:px-10">
-      <header className="mx-auto flex max-w-6xl items-start justify-between gap-3">
-        <h1 className="font-display text-3xl font-extrabold sm:text-4xl">⭐ {d.starsTitle}{name ? ` · ${name}` : ""}</h1>
-        <LangToggle lang={lang} setLang={setLang} />
-      </header>
+      <KidTop className="max-w-6xl" title={<>⭐ {d.starsTitle}{name ? ` · ${name}` : ""}</>} />
 
       {!stats ? <p className="mt-10 text-center text-ink-2">…</p> : (
         <div className="mx-auto max-w-6xl">
           <div className="rise mt-4 rounded-3xl bg-white p-6 text-center shadow-sm">
-            <div className="pop font-display text-7xl font-extrabold text-[#F27D26]">{stats.stars}</div>
+            <div className="pop font-display text-7xl font-extrabold text-[#F27D26]">{stats.stars + dayStars}</div>
             <div className="text-lg font-semibold text-ink-2">{d.totalStars}</div>
+            <div className="mt-1 text-sm text-ink-2">📚 {stats.stars} {d.schoolStars} · 🗓️ {dayStars} {d.dayStars}</div>
             <p className="mt-2 text-ink-2">{stats.stars === 0 ? d.noStarsYet : d.keepGoing}</p>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-3">
@@ -97,11 +97,6 @@ export default function StarsPage() {
         </div>
       )}
 
-      <nav className="mx-auto mt-6 flex max-w-6xl gap-2">
-        <Link href="/" className="rounded-2xl bg-white px-4 py-3 text-center font-display text-lg font-extrabold">🏠</Link>
-        <Link href="/school" className="flex-1 rounded-2xl bg-white py-3 text-center font-display text-lg font-extrabold">📚 {d.tomorrow}</Link>
-        <span className="flex-1 rounded-2xl bg-[#F27D26] py-3 text-center font-display text-lg font-extrabold text-white">⭐ {d.stars}</span>
-      </nav>
     </main>
   );
 }

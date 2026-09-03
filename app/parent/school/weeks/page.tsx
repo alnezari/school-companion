@@ -6,13 +6,12 @@ import { useLang } from "@/lib/lang";
 import { t } from "@/lib/i18n";
 import { todayISO, weekStartFor, addDays, formatDate } from "@/lib/schedule";
 import { loadWeeks, type WeekSummary } from "@/lib/data";
-import { LangToggle } from "@/components/LangToggle";
 import { ParentNav } from "@/components/ParentNav";
 import { isParentUnlocked } from "@/components/ParentGate";
 
 export default function WeeksPage() {
   const router = useRouter();
-  const [lang, setLang] = useLang("parent");
+  const [lang] = useLang("parent");
   const d = t(lang);
   const [weeks, setWeeks] = useState<WeekSummary[] | null>(null);
   const [current, setCurrent] = useState("");
@@ -24,8 +23,7 @@ export default function WeeksPage() {
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center gap-2">
           <h1 className="font-display text-xl font-extrabold">🗂 {d.weeks}</h1>
-          <LangToggle lang={lang} setLang={setLang} className="ms-auto" />
-          <Link href="/" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">🎒</Link>
+          <span className="ms-auto"><Link href="/parent" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">🏠</Link></span>
         </div>
         <ParentNav active="weeks" d={d} />
         {!weeks ? <p className="mt-6 text-center text-ink-2">…</p> : weeks.length === 0 ? (
@@ -37,7 +35,7 @@ export default function WeeksPage() {
               const isNow = w.start_date === current;
               const color = w.confidence === "green" ? "bg-green" : w.confidence === "orange" ? "bg-orange" : "bg-red";
               return (
-                <Link key={w.id} href={isNow ? "/parent" : `/parent?week=${w.start_date}`}
+                <Link key={w.id} href={isNow ? "/parent/school" : `/parent/school?week=${w.start_date}`}
                   className={`block rounded-2xl border bg-white p-3 ${isNow ? "border-accent ring-2 ring-accent/30" : "border-line"}`}>
                   <div className="flex items-center gap-2">
                     <span className={`h-3 w-3 shrink-0 rounded-full ${color}`} />

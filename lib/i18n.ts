@@ -42,6 +42,9 @@ const dict = {
     addBlock: "Add block", addActivity: "Add activity", name: "Name", icon: "Icon", category: "Category", start: "Start", length: "Length", days: "Days", repeat: "Repeat", weekly: "Every week", once: "Once, on", starsLabel: "Stars",
     durationsLabel: "Allowed lengths (minutes)", maxPerDay: "Max minutes per day", noLimit: "no limit", skipToday: "Skip today", skipped: "Skipped today", unskip: "Restore", opensSchoolLabel: "Opens the school plan", delete: "Delete",
     cats: { sport: "Sport", learning: "Learning", creative: "Creative", screen: "Screen", home: "Home", rest: "Rest", study: "Study" },
+    activities: "Activities", activitiesSub: "Fixed ones appear on his day by themselves; the rest he adds from the basket", fixedTime: "Fixed time", kidCanMove: "He can move it", dailyLimit: "Daily limit", none: "None",
+    newCategory: "New category", color: "Colour", emojiHint: "Type any emoji from the keyboard", school: "School", parentsHome: "Parents", language: "Language", schoolStars: "school", dayStars: "my day",
+    morning: "Morning", afternoon: "Afternoon", evening: "Evening", night: "Night", sortBy: "Sort", myDayApp: "My day",
     subject: "Subject", ttUploaded: "Timetable saved", periodsRead: "periods read", ttBody: "Pick the picture or PDF of the grid the school sent. Tap any period below to fix it by hand.", ttReading: "Reading the timetable with Claude…",
   },
   ar: {
@@ -78,6 +81,9 @@ const dict = {
     addBlock: "إضافة ثابت", addActivity: "إضافة نشاط", name: "الاسم", icon: "الأيقونة", category: "الفئة", start: "البداية", length: "المدة", days: "الأيام", repeat: "التكرار", weekly: "كل أسبوع", once: "مرة واحدة في", starsLabel: "النجوم",
     durationsLabel: "المدد المسموحة (دقائق)", maxPerDay: "الحد الأقصى يوميًا (دقائق)", noLimit: "بلا حد", skipToday: "إلغاء اليوم", skipped: "ملغى اليوم", unskip: "إرجاع", opensSchoolLabel: "يفتح خطة المدرسة", delete: "حذف",
     cats: { sport: "رياضة", learning: "تعلّم", creative: "إبداع", screen: "شاشة", home: "البيت", rest: "راحة", study: "مذاكرة" },
+    activities: "الأنشطة", activitiesSub: "الثابتة تظهر في يومه تلقائيًا، والباقي يضيفه من السلة", fixedTime: "وقت ثابت", kidCanMove: "يستطيع تحريكه", dailyLimit: "الحد اليومي", none: "بلا",
+    newCategory: "فئة جديدة", color: "اللون", emojiHint: "اكتب أي إيموجي من لوحة المفاتيح", school: "المدرسة", parentsHome: "الوالدان", language: "اللغة", schoolStars: "المدرسة", dayStars: "يومي",
+    morning: "الصباح", afternoon: "العصر", evening: "المساء", night: "الليل", sortBy: "ترتيب", myDayApp: "يومي",
     subject: "المادة", ttUploaded: "تم حفظ الجدول", periodsRead: "حصة قُرئت", ttBody: "اختر صورة أو PDF الجدول الذي أرسلته المدرسة. اضغط أي حصة أدناه لتصحيحها يدويًا.", ttReading: "جارٍ قراءة الجدول بواسطة Claude…",
   },
 };

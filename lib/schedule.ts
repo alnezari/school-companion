@@ -37,3 +37,9 @@ export function fmtTime(t: string) {
   const [h, m] = t.split(":");
   return `${Number(h)}:${m}`;
 }
+/** Minutes since midnight → "4:30 PM" (or "٤:٣٠ م" style suffix in Arabic, digits kept Latin). */
+export function fmt12(min: number, lang: "en" | "ar" = "en", omitMinutes = false) {
+  const h = Math.floor(min / 60) % 24, m = min % 60, h12 = h % 12 || 12;
+  const suffix = lang === "ar" ? (h < 12 ? "ص" : "م") : (h < 12 ? "AM" : "PM");
+  return `${h12}${omitMinutes && m === 0 ? "" : `:${String(m).padStart(2, "0")}`} ${suffix}`;
+}

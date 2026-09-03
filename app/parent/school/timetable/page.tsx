@@ -8,14 +8,13 @@ import { todayISO, schoolDay } from "@/lib/schedule";
 import { loadLatestTimetable, loadPeriodsFor, signedUrl, updatePeriod, type Timetable } from "@/lib/data";
 import type { Period } from "@/lib/placement";
 import { SUBJECTS, type SubjectKey } from "@/lib/subjects";
-import { LangToggle } from "@/components/LangToggle";
 import { isParentUnlocked } from "@/components/ParentGate";
 
 type Result = { ok?: boolean; error?: string; message?: string; problems?: string[]; issues?: { en: string; ar: string }[]; count?: number; what_i_saw?: string; storagePath?: string };
 
 export default function TimetablePage() {
   const router = useRouter();
-  const [lang, setLang] = useLang("parent");
+  const [lang] = useLang("parent");
   const d = t(lang);
   const [tt, setTt] = useState<Timetable | null>(null);
   const [periods, setPeriods] = useState<Period[]>([]);
@@ -59,9 +58,8 @@ export default function TimetablePage() {
     <main className="min-h-dvh px-3 pb-10 pt-3 sm:px-6">
       <div className="mx-auto max-w-3xl">
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/parent/settings" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">←</Link>
+          <Link href="/parent/school" className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold">←</Link>
           <h1 className="font-display text-xl font-extrabold">🗓 {d.timetable}</h1>
-          <LangToggle lang={lang} setLang={setLang} className="ms-auto" />
         </div>
         {tt && (
           <p className="mt-2 text-sm text-ink-2">{tt.name} · {d.validFrom} {tt.valid_from}
