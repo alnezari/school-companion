@@ -2,7 +2,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-const btn = "grid h-11 min-w-11 place-items-center rounded-full bg-white px-3 font-display text-lg font-extrabold shadow-sm transition active:scale-95";
+/** The one button style for the child's side: a white pill, big enough for a small hand. */
+export const kidBtn = "inline-flex h-12 items-center justify-center gap-1.5 rounded-full border border-line bg-white px-4 font-display text-xl font-extrabold text-ink shadow-sm transition active:scale-95";
 export function KidTop({ title, sub, stars, className = "" }: { title: ReactNode; sub?: ReactNode; stars?: number | null; className?: string }) {
   return (
     <header className={`mx-auto flex items-start justify-between gap-3 ${className}`}>
@@ -11,8 +12,8 @@ export function KidTop({ title, sub, stars, className = "" }: { title: ReactNode
         {sub && <p className="text-lg text-ink-2">{sub}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Link href="/" aria-label="Home" className={btn}>🏠</Link>
-        {stars !== undefined && <Link href="/stars" aria-label="Stars" className={btn}>⭐{stars != null && <span className="ms-1">{stars}</span>}</Link>}
+        <Link href="/" aria-label="Home" className={`${kidBtn} w-12 px-0`}>🏠</Link>
+        {stars !== undefined && <Link href="/stars" aria-label="Stars" className={kidBtn}>⭐{stars != null && <span className="tabular-nums">{stars}</span>}</Link>}
       </div>
     </header>
   );

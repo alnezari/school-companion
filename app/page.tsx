@@ -6,6 +6,7 @@ import { t } from "@/lib/i18n";
 import { loadSettings } from "@/lib/data";
 import { LangToggle } from "@/components/LangToggle";
 import { ParentGate } from "@/components/ParentGate";
+import { kidBtn } from "@/components/KidTop";
 
 // The child's launcher: two big "apps" like a store. More can be added here later.
 export default function Launcher() {
@@ -24,8 +25,8 @@ export default function Launcher() {
       <header className="mx-auto flex max-w-5xl items-start justify-between gap-3">
         <h1 className="font-display text-3xl font-extrabold sm:text-4xl">{d.hi} {name} 👋</h1>
         <div className="flex items-center gap-2">
-          <LangToggle lang={lang} setLang={setLang} />
-          <button onClick={() => setGate(true)} className="rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold text-ink-2">🔒 {d.parents}</button>
+          <LangToggle lang={lang} setLang={setLang} className="h-12" />
+          <button onClick={() => setGate(true)} className={`${kidBtn} text-base`}>🔒 {d.parents}</button>
         </div>
       </header>
       <div className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-8">
@@ -39,7 +40,7 @@ export default function Launcher() {
         ))}
       </div>
       <div className="mx-auto mt-6 flex max-w-5xl justify-center">
-        <Link href="/stars" className="rounded-2xl bg-white px-6 py-3 font-display text-lg font-extrabold shadow-sm">⭐ {d.stars}</Link>
+        <Link href="/stars" className={`${kidBtn} px-6`}>⭐ {d.stars}</Link>
       </div>
       {gate && <ParentGate pin={settings.parent_pin || "1234"} d={d} onClose={() => setGate(false)} />}
     </main>

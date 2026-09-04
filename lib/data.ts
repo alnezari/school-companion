@@ -15,7 +15,7 @@ export interface Entry {
   links: string[]; homework: string | null; independent_practice: string | null; extra: string | null; raw_text: string;
   needs_parent: boolean; placed: boolean;
 }
-export interface Progress { week_id: string; day: number; slot: number; done_at: string | null; feeling: "easy" | "ok" | "hard" | null }
+export interface Progress { week_id: string; day: number; slot: number; done_at: string | null; feeling: "easy" | "ok" | "hard" | null; packed_at?: string | null }
 export type ProgressMap = Record<string, Progress>;
 export const pkey = (day: number, slot: number) => `${day}-${slot}`;
 
@@ -73,9 +73,15 @@ export function subscribeProgress(weekId: string, onChange: (p: Progress) => voi
   return () => { supabase().removeChannel(ch); };
 }
 export async function setProgress(weekId: string, day: number, slot: number, done: boolean, feeling: Progress["feeling"] = null) {
-  const row: Progress = { week_id: weekId, day, slot, done_at: done ? new Date().toISOString() : null, feeling: done ? feeling : null };
+  const row: Progress = { week_id: weekId, day, slot, done_at: done ? new Date().toISOString() : null, feeling: done ? feeling : null, packed_at: null };
   await supabase().from("progress").upsert({ ...row, updated_at: new Date().toISOString() });
   return row;
+}
+/** The book for a finished lesson went into (or came out of) the bag. */
+export async function setPacked(weekId: string, day: number, slot: number, packed: boolean) {
+  const packed_at = packed ? new Date().toISOString() : null;
+  await supabase().from("progress").update({ packed_at, updated_at: new Date().toISOString() }).eq("week_id", weekId).eq("day", day).eq("slot", slot);
+  return packed_at;
 }
 export async function loadSettings(): Promise<Record<string, string>> {
   const { data } = await supabase().from("settings").select("key,value");

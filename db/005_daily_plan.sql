@@ -3,5 +3,6 @@
 -- activities(id, name_en, name_ar, icon, category -> categories, durations int[], stars, max_minutes_per_day, active, sort,
 --            fixed, start_time, minutes, days smallint[], repeat weekly|once, on_date, locked)
 --   fixed = appears on the day by itself at start_time; locked = the child cannot move it. Otherwise it sits in the basket with its durations.
+-- progress.packed_at: the book went into the bag (migration "bag_and_half_hours"; also rounds activities to 30-minute blocks).
 -- activity_skips(activity_id, date)   day_items(id, date, activity_id, start_time, minutes, done_at)  (realtime on)
 -- settings: day_home_time 14:00, day_bed_time 19:30, day_weekend_wake 09:00

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLang } from "@/lib/lang";
 import { t, DAY_SHORT7, type Dict } from "@/lib/i18n";
 import { loadSettings, saveSetting } from "@/lib/data";
-import { todayISO, formatDate, fmt12 } from "@/lib/schedule";
+import { todayISO, formatDate, fmt12, weekday } from "@/lib/schedule";
 import { isParentUnlocked } from "@/components/ParentGate";
 import {
   PALETTE, catColor, catName, configFrom, deleteActivity, loadActivities, loadCategories, loadSkips, saveActivity, saveCategory, setSkip, showsOn, toMin,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/day";
 
 type Draft = Omit<Activity, "id" | "sort"> & { id?: string };
-const empty = (): Draft => ({ name_en: "", name_ar: "", icon: "⭐", category: "sport", durations: [10, 20, 30], stars: 1, max_minutes_per_day: null, active: true, fixed: false, start_time: "16:00", minutes: 60, days: [0], repeat: "weekly", on_date: null, locked: true });
+const empty = (): Draft => ({ name_en: "", name_ar: "", icon: "⭐", category: "sport", durations: [30, 60], stars: 1, max_minutes_per_day: null, active: true, fixed: false, start_time: "16:00", minutes: 60, days: [0], repeat: "weekly", on_date: null, locked: true });
 const input = "mt-1 w-full rounded-xl border border-line bg-white px-3 py-2";
 const chip = (on: boolean) => `rounded-full border px-3 py-1 text-sm font-semibold ${on ? "border-ink bg-ink text-white" : "border-line bg-white"}`;
 
@@ -49,6 +49,7 @@ export default function ParentDayPage() {
   const [today, setToday] = useState("");
   const [edit, setEdit] = useState<Draft | null>(null);
   const [newCat, setNewCat] = useState<{ name_en: string; name_ar: string; color: string } | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => { if (!isParentUnlocked()) router.replace("/"); }, [router]);
   useEffect(() => {
     const iso = todayISO(); setToday(iso);
@@ -60,8 +61,26 @@ export default function ParentDayPage() {
     if (!cfg) return; setCfg({ ...cfg, [key]: v });
     await saveSetting({ home: "day_home_time", bed: "day_bed_time", wake: "day_weekend_wake" }[key], v);
   }
+  /** A fixed activity must sit inside his day window and never on top of another fixed one. */
+  function check(e: Draft): string | null {
+    if (!e.fixed || !cfg || !e.start_time) return null;
+    const start = toMin(e.start_time), end = start + (e.minutes ?? 30), bed = toMin(cfg.bed);
+    const dayList = e.repeat === "once" ? [weekday(e.on_date || today)] : e.days;
+    for (const wd of dayList) {
+      const from = toMin(wd >= 5 ? cfg.wake : cfg.home);
+      if (start < from || end > bed) return d.outsideWindow;
+      for (const o of acts) {
+        if (o.id === e.id || !o.fixed || !o.active || !o.start_time) continue;
+        const onDay = o.repeat === "once" ? (e.repeat === "once" ? o.on_date === (e.on_date || today) : o.on_date != null && weekday(o.on_date) === wd) : o.days.includes(wd);
+        const os = toMin(o.start_time), oe = os + (o.minutes ?? 30);
+        if (onDay && start < oe && os < end) return `${d.clashesWith} ${nm(o)} · ${DAY_SHORT7[lang][wd]}`;
+      }
+    }
+    return null;
+  }
   async function submit() {
     if (!edit || !edit.name_en.trim()) return;
+    const bad = check(edit); setProblem(bad); if (bad) return;
     const row = await saveActivity({ ...edit, icon: edit.icon.trim() || "⭐", name_ar: edit.name_ar.trim() || edit.name_en.trim(), durations: edit.durations.length ? edit.durations : [20], on_date: edit.repeat === "once" ? edit.on_date || today : null });
     if (row) setActs((a) => (a.some((x) => x.id === row.id) ? a.map((x) => (x.id === row.id ? row : x)) : [...a, row]));
     setEdit(null);
@@ -103,31 +122,36 @@ export default function ParentDayPage() {
             <div><h2 className="font-display font-extrabold">🧺 {d.activities}</h2><p className="text-sm text-ink-2">{d.activitiesSub}</p></div>
             <button onClick={() => setEdit(empty())} className="shrink-0 rounded-xl bg-accent px-3 py-1.5 text-sm font-semibold text-white">＋ {d.addActivity}</button>
           </div>
-          <ul className="mt-3 divide-y divide-line">
-            {acts.map((a) => {
-              const color = catColor(cats, a.category), skipped = skips.has(a.id), onToday = showsOn(a, today);
-              return (
-                <li key={a.id} className={`flex items-center gap-3 py-2.5 ${a.active ? "" : "opacity-50"}`}>
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-xl text-white" style={{ background: color }}>{a.icon}</span>
-                  <button onClick={() => setEdit({ ...a })} className="min-w-0 flex-1 text-start">
-                    <div className="truncate font-semibold" dir="auto">{nm(a)} {a.stars > 0 && <span className="text-xs">{"⭐".repeat(Math.min(a.stars, 3))}</span>}</div>
-                    <div className="truncate text-xs text-ink-2">
-                      {a.fixed && a.start_time ? <>{a.locked ? "🔒" : "↕"} {fmt12(toMin(a.start_time), lang)} · {a.minutes} {d.minutes} · {a.repeat === "once" ? (a.on_date ? formatDate(a.on_date, lang) : d.once) : a.days.map((x) => DAY_SHORT7[lang][x]).join(" ")}</>
-                        : <>{catName(cats, a.category, lang)} · {a.durations.join("/")} {d.minutes}{a.max_minutes_per_day != null && <> · ⏱ {a.max_minutes_per_day}</>}</>}
-                      {skipped && <span className="ms-1 rounded-full bg-orange-soft px-2 text-orange">{d.skipped}</span>}
-                    </div>
-                  </button>
-                  {onToday && a.active && <button onClick={() => toggleSkip(a)} className="shrink-0 rounded-full border border-line px-2.5 py-1 text-xs font-semibold">{skipped ? d.unskip : d.skipToday}</button>}
-                  <Switch on={a.active} onChange={() => toggleActive(a)} />
-                </li>
-              );
-            })}
-          </ul>
+          {([["fixedSection", true, "🔒"], ["basketSection", false, "🧺"]] as const).map(([label, fixed, icon]) => (
+            <div key={label} className="mt-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-ink-2">{icon} {d[label]}</h3>
+              <ul className="divide-y divide-line">
+                {acts.filter((a) => a.fixed === fixed).map((a) => {
+                  const color = catColor(cats, a.category), skipped = skips.has(a.id), onToday = showsOn(a, today);
+                  return (
+                    <li key={a.id} className={`flex items-center gap-3 py-2.5 ${a.active ? "" : "opacity-50"}`}>
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-xl text-white" style={{ background: color }}>{a.icon}</span>
+                      <button onClick={() => setEdit({ ...a })} className="min-w-0 flex-1 text-start">
+                        <div className="truncate font-semibold" dir="auto">{nm(a)} {a.stars > 0 && <span className="text-xs">{"⭐".repeat(Math.min(a.stars, 3))}</span>}</div>
+                        <div className="truncate text-xs text-ink-2">
+                          {a.fixed && a.start_time ? <>{a.locked ? "🔒" : "↕"} {fmt12(toMin(a.start_time), lang)} · {a.minutes} {d.minutes} · {a.repeat === "once" ? (a.on_date ? formatDate(a.on_date, lang) : d.once) : a.days.map((x) => DAY_SHORT7[lang][x]).join(" ")}</>
+                            : <>{catName(cats, a.category, lang)} · {a.durations.join("/")} {d.minutes}{a.max_minutes_per_day != null && <> · ⏱ {a.max_minutes_per_day}</>}</>}
+                          {skipped && <span className="ms-1 rounded-full bg-orange-soft px-2 text-orange">{d.skipped}</span>}
+                        </div>
+                      </button>
+                      {onToday && a.active && <button onClick={() => toggleSkip(a)} className="shrink-0 rounded-full border border-line px-2.5 py-1 text-xs font-semibold">{skipped ? d.unskip : d.skipToday}</button>}
+                      <Switch on={a.active} onChange={() => toggleActive(a)} />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </section>
       </div>
 
       {edit && (
-        <Sheet d={d} title={edit.id ? nm(edit) : d.addActivity} onClose={() => { setEdit(null); setNewCat(null); }} onSave={submit}
+        <Sheet d={d} title={edit.id ? nm(edit) : d.addActivity} onClose={() => { setEdit(null); setNewCat(null); setProblem(null); }} onSave={submit}
           onDelete={edit.id ? async () => { await deleteActivity(edit.id!); setActs((a) => a.filter((x) => x.id !== edit.id)); setEdit(null); } : undefined}>
           <div className="grid grid-cols-[64px_1fr_1fr] gap-3">
             <Field label={d.icon}><input value={edit.icon} maxLength={4} onChange={(e) => setEdit({ ...edit, icon: e.target.value })} className={`${input} text-center text-2xl`} /></Field>
@@ -152,17 +176,15 @@ export default function ParentDayPage() {
               </div>
             )}
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={d.starsLabel}>
-              <div className="mt-1 flex gap-1">{[0, 1, 2, 3].map((n) => <button type="button" key={n} onClick={() => setEdit({ ...edit, stars: n })} className={chip(edit.stars === n)}>{n === 0 ? d.none : "⭐".repeat(n)}</button>)}</div>
-            </Field>
-            <Switch on={edit.fixed} onChange={(v) => setEdit({ ...edit, fixed: v })} label={`🔒 ${d.fixedTime}`} />
-          </div>
+          <Field label={d.starsLabel}>
+            <div className="mt-1 flex flex-wrap gap-1">{[0, 1, 2, 3].map((n) => <button type="button" key={n} onClick={() => setEdit({ ...edit, stars: n })} className={chip(edit.stars === n)}>{n === 0 ? d.none : "⭐".repeat(n)}</button>)}</div>
+          </Field>
+          <Switch on={edit.fixed} onChange={(v) => setEdit({ ...edit, fixed: v })} label={`🔒 ${d.fixedTime}`} />
           {edit.fixed ? (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <Field label={d.start}><input type="time" value={edit.start_time ?? "16:00"} onChange={(e) => setEdit({ ...edit, start_time: e.target.value })} className={input} /></Field>
-                <Field label={`${d.length} (${d.minutes})`}><input type="number" min={5} step={5} value={edit.minutes ?? 60} onChange={(e) => setEdit({ ...edit, minutes: Number(e.target.value) })} className={input} /></Field>
+                <Field label={d.start}><input type="time" step={1800} value={edit.start_time ?? "16:00"} onChange={(e) => setEdit({ ...edit, start_time: e.target.value })} className={input} /></Field>
+                <Field label={`${d.length} (${d.minutes})`}><input type="number" min={30} step={30} value={edit.minutes ?? 60} onChange={(e) => setEdit({ ...edit, minutes: Math.max(30, Math.ceil(Number(e.target.value) / 30) * 30) })} className={input} /></Field>
               </div>
               <Field label={d.repeat}>
                 <div className="mt-1 flex flex-wrap gap-1">
@@ -176,17 +198,18 @@ export default function ParentDayPage() {
                 )}
               </Field>
               <Switch on={!edit.locked} onChange={(v) => setEdit({ ...edit, locked: !v })} label={`↕ ${d.kidCanMove}`} />
+              {problem && <p className="rounded-xl bg-red-soft px-3 py-2 text-sm font-semibold text-red">⚠ {problem}</p>}
             </>
           ) : (
             <>
               <Field label={`${d.length} (${d.minutes})`}>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {[5, 10, 15, 20, 30, 45, 60].map((m) => <button type="button" key={m} onClick={() => setEdit({ ...edit, durations: edit.durations.includes(m) ? edit.durations.filter((x) => x !== m) : [...edit.durations, m].sort((a, b) => a - b) })} className={chip(edit.durations.includes(m))}>{m}</button>)}
+                  {[30, 60, 90, 120].map((m) => <button type="button" key={m} onClick={() => setEdit({ ...edit, durations: edit.durations.includes(m) ? edit.durations.filter((x) => x !== m) : [...edit.durations, m].sort((a, b) => a - b) })} className={chip(edit.durations.includes(m))}>{m}</button>)}
                 </div>
               </Field>
               <Field label={`⏱ ${d.dailyLimit}`}>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {[null, 30, 60, 90].map((m) => <button type="button" key={m ?? "none"} onClick={() => setEdit({ ...edit, max_minutes_per_day: m })} className={chip(edit.max_minutes_per_day === m)}>{m == null ? d.none : `${m} ${d.minutes}`}</button>)}
+                  {[null, 30, 60, 90, 120].map((m) => <button type="button" key={m ?? "none"} onClick={() => setEdit({ ...edit, max_minutes_per_day: m })} className={chip(edit.max_minutes_per_day === m)}>{m == null ? d.none : `${m} ${d.minutes}`}</button>)}
                 </div>
               </Field>
             </>

@@ -10,8 +10,8 @@ import {
   setDone, showsOn, subscribeDayItems, toMin, toTime, type Activity, type Category, type DayConfig, type DayItem,
 } from "@/lib/day";
 
-const PX = 2.4; // pixels per minute
-const SNAP = 5;
+const PX = 1.5; // pixels per minute: a 30-minute block is 45px, two lines
+const SNAP = 30; // everything moves in half-hour blocks
 /** One card on the timeline. A fixed activity is placed by itself; anything else is a card he added. */
 interface Card { key: string; activity: Activity; item: DayItem | null; start: number; minutes: number; locked: boolean; name: string; color: string }
 
@@ -20,13 +20,14 @@ function nowMinutes() {
   const h = Number(p.find((x) => x.type === "hour")?.value ?? 0), m = Number(p.find((x) => x.type === "minute")?.value ?? 0);
   return (h % 24) * 60 + m;
 }
-/** Day and night bands so the times make sense: morning, afternoon, evening, night. */
-const BANDS = [
-  { until: 12 * 60, icon: "🌅", key: "morning" as const, bg: "#FFF3D6" },
-  { until: 17 * 60, icon: "☀️", key: "afternoon" as const, bg: "#FFFBEA" },
-  { until: 18 * 60 + 30, icon: "🌇", key: "evening" as const, bg: "#FDE7D3" },
-  { until: 24 * 60, icon: "🌙", key: "night" as const, bg: "#E3E7F5" },
-];
+/** Where the light changes: a small sun or moon next to the hour, nothing more. */
+const MARKS: [number, string][] = [[6 * 60, "🌅"], [12 * 60, "☀️"], [17 * 60, "🌇"], [18 * 60 + 30, "🌙"]];
+const markFor = (m: number) => MARKS.find(([at]) => at === m)?.[1];
+/** One soft gradient behind the timeline: warm by day, cool at night. */
+function skyGradient(start: number, end: number) {
+  const pct = (m: number) => `${Math.min(100, Math.max(0, ((m - start) / (end - start)) * 100)).toFixed(1)}%`;
+  return `linear-gradient(to bottom, #FFFBEA ${pct(start)}, #FFF4DF ${pct(17 * 60)}, #EEF1F9 ${pct(18 * 60 + 30)}, #E6EAF6 ${pct(end)})`;
+}
 
 export default function DayPage() {
   const [lang] = useLang("kid");
@@ -81,6 +82,7 @@ export default function DayPage() {
   const todayStars = cards.reduce((n, c) => n + (c.item?.done_at ? c.activity.stars : 0), 0);
   const usedBy = (a: Activity) => items.filter((i) => i.activity_id === a.id).reduce((n, i) => n + i.minutes, 0);
   const basket = acts.filter((a) => !a.fixed);
+  const lengths = (a: Activity) => { const l = a.durations.filter((m) => m >= SNAP && m % SNAP === 0); return l.length ? l : [SNAP]; };
 
   // ----- drag: snap to 5 minutes, never overlap, stay inside the window -----
   const drag = useRef<{ key: string; y0: number; start0: number } | null>(null);
@@ -132,17 +134,16 @@ export default function DayPage() {
     setBurst(c.key); setTimeout(() => setBurst(null), 900);
     await setDone(item.id, true);
   }
+  async function undo(c: Card) {
+    if (!c.item) return;
+    setItems((it) => it.map((i) => (i.id === c.item!.id ? { ...i, done_at: null } : i)));
+    await setDone(c.item.id, false);
+  }
   async function remove(c: Card) { if (!c.item) return; setItems((it) => it.filter((i) => i.id !== c.item!.id)); await removeDayItem(c.item.id); }
 
   const H = win ? (win.end - win.start) * PX : 0;
   const y = (m: number) => (win ? (m - win.start) * PX : 0);
   const labels = useMemo(() => { if (!win) return []; const out: number[] = []; for (let m = Math.ceil(win.start / 30) * 30; m <= win.end; m += 30) out.push(m); return out; }, [win]);
-  const bands = useMemo(() => {
-    if (!win) return [];
-    const out: { from: number; to: number; icon: string; label: string; bg: string }[] = []; let cur = win.start;
-    for (const b of BANDS) { if (cur >= win.end) break; if (b.until <= cur) continue; const to = Math.min(b.until, win.end); out.push({ from: cur, to, icon: b.icon, label: d[b.key], bg: b.bg }); cur = to; }
-    return out;
-  }, [win, d]);
   const weekday = date ? new Date(date + "T12:00:00Z").getUTCDay() : 0;
 
   return (
@@ -152,19 +153,14 @@ export default function DayPage() {
       {!win ? <p className="mx-auto mt-10 max-w-4xl text-center text-ink-2">…</p> : (
         <div className="mx-auto mt-4 max-w-4xl rounded-3xl bg-white p-3 shadow-sm sm:p-5">
           {cards.every((c) => c.locked) && basket.length > 0 && <p className="mb-2 rounded-2xl bg-[#EAF4FF] px-4 py-2 text-center font-display font-bold text-accent">{d.nothingPlanned}</p>}
-          <div className="relative" style={{ height: H + 16 }}>
-            {bands.map((b) => (
-              <div key={b.from} className="absolute inset-x-0 rounded-2xl" style={{ top: y(b.from), height: (b.to - b.from) * PX, background: b.bg }}>
-                <span className="absolute end-2 top-1 rounded-full bg-white/70 px-2 py-0.5 text-xs font-bold text-ink-2">{b.icon} {b.label}</span>
-              </div>
-            ))}
+          <div className="relative rounded-2xl" style={{ height: H + 12, background: skyGradient(win.start, win.end) }}>
             {labels.map((m) => (
-              <div key={m} className="absolute inset-x-0 flex items-center gap-2" style={{ top: y(m) }}>
-                <span className={`w-14 shrink-0 text-end tabular-nums ${m % 60 === 0 ? "text-xs font-bold text-ink" : "text-[10px] text-ink-2"}`}>{m % 60 === 0 ? fmt12(m, lang, true) : ":30"}</span>
+              <div key={m} className="absolute inset-x-0 flex -translate-y-1/2 items-center gap-2" style={{ top: y(m) }}>
+                <span className={`w-16 shrink-0 text-end tabular-nums ${m % 60 === 0 ? "text-xs font-bold text-ink" : "text-[10px] text-ink-2"}`}>{markFor(m) && <span className="me-1">{markFor(m)}</span>}{m % 60 === 0 ? fmt12(m, lang, true) : ":30"}</span>
                 <span className={`h-px flex-1 ${m % 60 === 0 ? "bg-ink/15" : "bg-ink/5"}`} />
               </div>
             ))}
-            <div className="absolute inset-y-0 start-16 end-0">
+            <div className="absolute inset-y-0 start-[4.5rem] end-2">
               {gaps.map((g) => (
                 <button key={g.start} onClick={() => setGap(g)} className="absolute inset-x-0 rounded-2xl border-2 border-dashed border-transparent text-sm font-bold text-accent/70 transition hover:border-accent/40"
                   style={{ top: y(g.start) + 2, height: (g.end - g.start) * PX - 4 }}>
@@ -174,19 +170,23 @@ export default function DayPage() {
               {cards.map((c) => {
                 const start = ghost?.key === c.key ? ghost.start : c.start;
                 const isDone = !!c.item?.done_at, canDo = now >= c.start && !isDone, bad = ghost?.key === c.key && !fits(c.key, start, c.minutes);
-                const short = c.minutes * PX < 44;
+                const clash = !c.locked && cards.some((o) => o.key !== c.key && o.activity.fixed && start < o.start + o.minutes && o.start < start + c.minutes);
+                const gone = !isDone && now >= c.start + c.minutes;
+                const canRemove = !!c.item && !c.activity.fixed;
                 return (
                   <div key={c.key} onPointerDown={(e) => onDown(e, c)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-                    className={`absolute inset-x-0 flex select-none items-center gap-2 overflow-hidden rounded-2xl border-2 px-3 text-white shadow-sm ${c.locked ? "" : "touch-none"} ${ghost?.key === c.key ? "z-20 scale-[1.02] shadow-xl" : ""}`}
-                    style={{ top: y(start) + 2, height: c.minutes * PX - 4, background: c.color, borderColor: bad ? "#C8321E" : isDone ? "#FFD84D" : "rgba(255,255,255,.5)", transition: ghost?.key === c.key ? "none" : "top .15s" }}>
-                    <span className={short ? "text-lg" : "text-2xl"}>{c.activity.icon}</span>
+                    className={`absolute inset-x-0 flex select-none items-center gap-2 overflow-hidden rounded-xl border-2 px-2.5 shadow-sm ${c.locked ? "" : "touch-none"} ${ghost?.key === c.key ? "z-20 scale-[1.02] shadow-xl" : ""} ${gone ? "text-ink-2" : "text-white"}`}
+                    style={{ top: y(start) + 2, height: c.minutes * PX - 4, background: gone ? "#ffffffb3" : c.color, borderColor: bad || clash ? "#C8321E" : isDone ? "#FFD84D" : gone ? c.color : "rgba(255,255,255,.5)", transition: ghost?.key === c.key ? "none" : "top .15s", zIndex: clash ? 10 : undefined }}>
+                    <span className="text-xl">{c.activity.icon}</span>
                     <div className="min-w-0 flex-1 leading-tight">
-                      <div className={`truncate font-display font-extrabold ${short ? "text-sm" : ""}`} dir="auto">{c.name}{c.locked && <span className="ms-1 text-xs opacity-80">🔒</span>}</div>
-                      {!short && <div className="text-xs opacity-90">{fmt12(c.start, lang)} · {c.minutes} {d.minutes}{c.activity.stars > 0 && <> · {"⭐".repeat(Math.min(c.activity.stars, 3))}</>}</div>}
+                      <div className="truncate font-display text-sm font-extrabold" dir="auto">{c.name}{c.locked && <span className="ms-1 text-xs opacity-80">🔒</span>}</div>
+                      <div className="truncate text-[11px] opacity-90">{clash ? <span className="font-bold text-white"><span className="rounded bg-red px-1">{d.needsMove}</span></span> : gone ? d.gone : <>{fmt12(c.start, lang)} · {c.minutes} {d.minutes}{c.activity.stars > 0 && <> · {"⭐".repeat(Math.min(c.activity.stars, 3))}</>}</>}</div>
                     </div>
-                    {isDone ? <span className={`rounded-full bg-white/25 px-2 py-0.5 text-lg ${burst === c.key ? "pop" : ""}`}>✓ ⭐</span>
-                      : canDo ? <button onPointerDown={(e) => e.stopPropagation()} onClick={() => done(c)} className="rounded-full bg-white px-3 py-1 font-display text-sm font-extrabold" style={{ color: c.color }}>✓ {d.doneStar}</button>
-                      : c.item && !c.activity.fixed && <button onPointerDown={(e) => e.stopPropagation()} onClick={() => remove(c)} aria-label={d.remove} className="rounded-full bg-white/25 px-2 py-0.5 text-sm font-bold">✕</button>}
+                    {isDone ? <button onPointerDown={(e) => e.stopPropagation()} onClick={() => undo(c)} aria-label={d.notYet} className={`rounded-full bg-white/25 px-2 py-0.5 text-lg ${burst === c.key ? "pop" : ""}`}>⭐</button>
+                      : <>
+                        {canDo && <button onPointerDown={(e) => e.stopPropagation()} onClick={() => done(c)} className="rounded-full bg-white px-2.5 py-0.5 font-display text-xs font-extrabold" style={{ color: c.color }}>✓ {d.doneStar}</button>}
+                        {canRemove && <button onPointerDown={(e) => e.stopPropagation()} onClick={() => remove(c)} aria-label={d.remove} className={`rounded-full px-2 py-0.5 text-sm font-bold ${gone ? "bg-ink/10" : "bg-white/25"}`}>✕</button>}
+                      </>}
                   </div>
                 );
               })}
@@ -214,7 +214,7 @@ export default function DayPage() {
                   const color = catColor(cats, a.category);
                   const left = a.max_minutes_per_day != null ? Math.max(0, a.max_minutes_per_day - usedBy(a)) : null;
                   const room = Math.min(gap.end - gap.start, left ?? Infinity);
-                  const ok = a.durations.some((m) => m <= room);
+                  const ok = lengths(a).some((m) => m <= room);
                   return (
                     <button key={a.id} disabled={!ok} onClick={() => setPick(a)} className="flex items-center gap-3 rounded-2xl border-2 p-3 text-start disabled:opacity-40" style={{ borderColor: color }}>
                       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-2xl text-white" style={{ background: color }}>{a.icon}</span>
@@ -230,7 +230,7 @@ export default function DayPage() {
               <div className="mt-4">
                 <button onClick={() => setPick(null)} className="text-sm font-semibold text-ink-2">← {d.basket}</button>
                 <div className="mt-3 flex flex-wrap gap-3">
-                  {pick.durations.map((m) => {
+                  {lengths(pick).map((m) => {
                     const left = pick.max_minutes_per_day != null ? pick.max_minutes_per_day - usedBy(pick) : Infinity;
                     const ok = m <= gap.end - gap.start && m <= left;
                     return <button key={m} disabled={!ok} onClick={() => add(pick, m)} className="rounded-2xl px-6 py-4 font-display text-2xl font-extrabold text-white disabled:opacity-30" style={{ background: catColor(cats, pick.category) }}>{m} <span className="text-base">{d.minutes}</span></button>;

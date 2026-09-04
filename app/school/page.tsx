@@ -1,14 +1,26 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLang } from "@/lib/lang";
 import { t, DAY_NAMES } from "@/lib/i18n";
 import { nextSchoolDay, schoolDay, formatDate } from "@/lib/schedule";
-import { buildDay, homeworkCount, loadEntries, loadPeriods, loadProgress, loadSettings, loadWeekFor, pkey, setProgress, subscribeProgress, type Entry, type ProgressMap, type WeekRow } from "@/lib/data";
+import { buildDay, homeworkCount, loadEntries, loadPeriods, loadProgress, loadSettings, loadWeekFor, pkey, setPacked, setProgress, subscribeProgress, type Entry, type ProgressMap, type WeekRow } from "@/lib/data";
 import type { Period } from "@/lib/placement";
 import { SUBJECTS, subjectName, type SubjectKey } from "@/lib/subjects";
 import { KidTop } from "@/components/KidTop";
 import { LessonSheet } from "@/components/LessonSheet";
+
+/** A finished lesson becomes a little book: a coloured cover with a darker spine. */
+function Book({ subjectKey, small = false, style, ...rest }: { subjectKey: string; small?: boolean } & React.HTMLAttributes<HTMLDivElement>) {
+  const meta = SUBJECTS[subjectKey as SubjectKey];
+  return (
+    <div {...rest} style={{ background: meta.color, boxShadow: "inset 6px 0 0 rgba(0,0,0,.22), 0 2px 6px rgba(0,0,0,.15)", ...style }}
+      className={`flex select-none flex-col items-center justify-center rounded-e-lg rounded-s-sm text-white ${small ? "h-14 w-10 text-xl" : "h-24 w-20 gap-1"} ${rest.className ?? ""}`}>
+      <span className={small ? "" : "text-3xl"}>{meta.icon}</span>
+      {!small && <span dir="auto" className="max-w-full truncate px-1 font-display text-[11px] font-extrabold leading-tight">{subjectName(subjectKey)}</span>}
+    </div>
+  );
+}
 
 export default function KidPage() {
   const [lang] = useLang("kid");
@@ -50,7 +62,36 @@ export default function KidPage() {
   const hw = homeworkCount(slots, unmatched);
   const prepare = slots.filter((s) => !s.entry).length;
   const allDone = slots.length > 0 && doneCount === slots.length;
-  useEffect(() => { if (allDone) setCelebrate(true); }, [allDone]);
+  const packedCount = slots.filter((s) => progress[pkey(day, s.period.slot)]?.packed_at).length;
+  const allPacked = allDone && packedCount === slots.length;
+  useEffect(() => { if (allPacked) setCelebrate(true); }, [allPacked]);
+
+  // ----- the bag: once everything is done, he drags each book in -----
+  const bagRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ slot: number; x0: number; y0: number; moved: boolean } | null>(null);
+  const [dragPos, setDragPos] = useState<{ slot: number; dx: number; dy: number } | null>(null);
+  async function pack(slot: number, packed: boolean) {
+    if (!week) return;
+    const packed_at = await setPacked(week.id, day, slot, packed);
+    setProgressMap((m) => ({ ...m, [pkey(day, slot)]: { ...m[pkey(day, slot)], packed_at } }));
+  }
+  function bookDown(e: React.PointerEvent, slot: number) {
+    dragRef.current = { slot, x0: e.clientX, y0: e.clientY, moved: false };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function bookMove(e: React.PointerEvent) {
+    const dr = dragRef.current; if (!dr || !allDone) return;
+    const dx = e.clientX - dr.x0, dy = e.clientY - dr.y0;
+    if (Math.abs(dx) + Math.abs(dy) > 6) dr.moved = true;
+    if (dr.moved) setDragPos({ slot: dr.slot, dx, dy });
+  }
+  function bookUp(e: React.PointerEvent) {
+    const dr = dragRef.current; dragRef.current = null; setDragPos(null);
+    if (!dr) return;
+    if (!dr.moved) { setOpenSlot(dr.slot); return; }
+    const r = bagRef.current?.getBoundingClientRect();
+    if (r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) pack(dr.slot, true);
+  }
 
   async function mark(slot: number, done: boolean, feeling?: "easy" | "ok" | "hard") {
     if (!week) return;
@@ -81,7 +122,8 @@ export default function KidPage() {
             📚 {slots.length} {d.classes}{hw > 0 && <> · <span className="text-red">{hw} {d.homework}</span></>}{prepare > 0 && <> · {prepare} {d.toPrepare}</>}
             {" · "}⭐ {doneCount}/{slots.length}
           </p>
-          {allDone && <div className="pop mt-3 rounded-2xl bg-green px-4 py-3 text-center font-display text-xl font-extrabold text-white">{d.allDone}</div>}
+          {allPacked ? <div className="pop mt-3 rounded-2xl bg-green px-4 py-3 text-center font-display text-xl font-extrabold text-white">{d.allDone}</div>
+            : allDone && <div className="rise mt-3 rounded-2xl bg-[#F27D26] px-4 py-3 text-center font-display text-xl font-extrabold text-white">{d.packTitle}<span className="block text-sm font-semibold opacity-90">{d.packHint}</span></div>}
 
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {slots.filter((s) => !progress[pkey(day, s.period.slot)]?.done_at).map(({ period, entry }) => {
@@ -104,17 +146,28 @@ export default function KidPage() {
             })}
           </div>
           {doneCount > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {slots.filter((s) => !!progress[pkey(day, s.period.slot)]?.done_at).map(({ period }) => {
-                const meta = SUBJECTS[period.subject_key as SubjectKey];
-                return (
-                  <button key={period.slot} onClick={() => setOpenSlot(period.slot)} className="pop flex items-center gap-2 rounded-full py-1.5 pe-3 ps-1.5 font-display text-sm font-extrabold text-white shadow-sm" style={{ background: meta.color }}>
-                    <span className="grid h-7 w-7 place-items-center rounded-full bg-white/25">{meta.icon}</span>
-                    <span dir="auto">{subjectName(period.subject_key)}</span>
-                    <span>⭐</span>
-                  </button>
-                );
-              })}
+            <div className={`mt-4 flex flex-wrap items-end gap-4 ${allDone ? "sm:flex-nowrap" : ""}`}>
+              <div className="flex flex-wrap gap-3 rounded-2xl border-b-8 border-[#C9A16B] bg-[#F1E3CB] px-3 pb-2 pt-3">
+                {slots.filter((s) => { const p = progress[pkey(day, s.period.slot)]; return !!p?.done_at && !p.packed_at; }).map(({ period }) => {
+                  const dragging = dragPos?.slot === period.slot;
+                  return (
+                    <Book key={period.slot} subjectKey={period.subject_key} onPointerDown={(e) => bookDown(e, period.slot)} onPointerMove={bookMove} onPointerUp={bookUp} onPointerCancel={bookUp}
+                      className={`pop ${allDone ? "cursor-grab touch-none" : ""} ${dragging ? "z-40 scale-110" : ""}`}
+                      style={dragging ? { transform: `translate(${dragPos.dx}px, ${dragPos.dy}px) scale(1.1)`, transition: "none", position: "relative" } : undefined} />
+                  );
+                })}
+                {packedCount === doneCount && <span className="self-center px-2 text-sm font-semibold text-[#8A6A3D]">{d.bagReady}</span>}
+              </div>
+              {allDone && (
+                <div ref={bagRef} className={`flex min-h-32 flex-1 flex-col items-center justify-end rounded-3xl border-4 border-dashed p-3 transition ${dragPos ? "border-[#F27D26] bg-[#FFE9D6]" : "border-[#C9A16B]/60 bg-white/60"}`}>
+                  <div className="flex flex-wrap items-end justify-center gap-1">
+                    {slots.filter((s) => !!progress[pkey(day, s.period.slot)]?.packed_at).map(({ period }) => (
+                      <Book key={period.slot} subjectKey={period.subject_key} small onClick={() => pack(period.slot, false)} className="pop cursor-pointer" />
+                    ))}
+                  </div>
+                  <div className="mt-1 font-display text-lg font-extrabold text-[#8A6A3D]">🎒 {d.myBag} · {packedCount}/{slots.length}</div>
+                </div>
+              )}
             </div>
           )}
         </div>
