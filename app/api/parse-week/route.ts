@@ -65,13 +65,15 @@ export async function POST(req: Request) {
   let parsed: PlanOutput | null = null;
   let usage: unknown = null;
   try {
-    const res = await client.messages.parse({
+    // Streamed: 32k max_tokens trips the SDK's non-streaming 10-minute guard even though this finishes in well under that.
+    const stream = client.messages.stream({
       model: MODEL,
       max_tokens: 32000,
       system,
       messages: [{ role: "user", content: [doc, { type: "text", text: "Read this document following the rules exactly and return the structured output." }] }],
       output_config: { format: zodOutputFormat(PlanOutput) },
     });
+    const res = await stream.finalMessage();
     usage = res.usage;
     if (res.stop_reason === "refusal") return NextResponse.json({ error: "refused", message: "The reader declined this document.", storagePath }, { status: 422 });
     parsed = res.parsed_output ?? null;
