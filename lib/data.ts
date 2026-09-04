@@ -5,7 +5,7 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 export interface WeekRow {
   id: string; title: string | null; week_number: number | null; start_date: string; end_date: string; timetable_id: string | null;
-  value_of_week: { arabic: string | null; english: string | null; source: string | null } | null;
+  value_of_week: { arabic: string; english: string; source: string } | null;
   source_path: string; confidence: "green" | "orange" | "red"; issues: Issue[];
   dates_mentioned: { text: string; date: string | null; kind: string }[];
 }

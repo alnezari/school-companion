@@ -10,7 +10,7 @@ import type { PlanOutput, PlanItem } from "../lib/parse-schema";
 const NOTEBOOKS = "Please ensure students have their notebooks.";
 const WORKSHEET = "The worksheet will be given to the students, and it is due on Sunday, September 6.";
 const MEMORISE = "حفظ الآيات حفظًا جيدًا";
-const base = { specific_period: null, topic: null, lesson: null, pages: null, objectives: null, activity: null, links: [] as string[], homework: null, independent_practice: null, extra: null, needs_parent: false };
+const base = { specific_period: null, topic: "", lesson: "", pages: "", objectives: "", activity: "", links: [] as string[], homework: "", independent_practice: "", extra: "", needs_parent: false };
 const it = (x: Partial<PlanItem> & Pick<PlanItem, "day" | "plan_subject" | "raw_text">): PlanItem => ({ ...base, ...x });
 
 const math11 = { topic: "Topic 1: Fluently Add and Subtract within 20", lesson: "Lesson 1-1\nAddition Fact strategies", pages: "Pp.5-8", objectives: "1- Students will be able to use counting  on to add numbers .\n\n2- Student will be able to add numbers in any order.", raw_text: "Topic 1: Fluently Add and Subtract within 20\n\nLesson 1-1\nAddition Fact strategies \nPp.5-8\n\nObjectives:1- Students will be able to use counting  on to add numbers .\n\n2- Student will be able to add numbers in any order." };
@@ -20,7 +20,7 @@ const out: PlanOutput = {
   is_weekly_plan: true,
   what_i_saw: "GRADE 2 TERM 1 WEEK 2 PLAN, August 30, 2026 - September 3, 2026 (entered by hand from the PDF; page 5 is an image)",
   grade: "GRADE 2", term: "TERM 1", week_number: 2, start_date: "2026-08-30", end_date: "2026-09-03",
-  value_of_week: null,
+  value_of_week: { arabic: "", english: "", source: "" },
   items: [
     // ENGLISH
     it({ day: "sun", plan_subject: "english", topic: "English diagnostic test writing and grammar", objectives: "Grammar: Assess students’ prior knowledge of basic Grade 2 grammar skills. Writing: Assess students’ ability to write clear and complete sentences independently.", independent_practice: NOTEBOOKS, needs_parent: true, raw_text: "English diagnostic test writing and grammar \n\nOutcome: Grammar: Assess students’ prior knowledge of basic Grade 2 grammar skills. Writing: Assess students’ ability to write clear and complete sentences independently.\n\nIndependent Practice\nPlease ensure students have their notebooks." }),

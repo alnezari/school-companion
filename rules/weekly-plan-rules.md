@@ -25,10 +25,10 @@ The plan has: a table for English, Math and Science (one row per day, with an "I
 The timetable splits English into differently named periods (Reading, Reading Comprehension, Vocabulary, Spelling, Grammar, Phonics, Writing, Writing Mechanism, English Fluency). The plan has one English column. Leave `specific_period` as null unless the English cell explicitly names one of those periods (for example "Phonics short vowels" -> `phonics`, "Grammar (adjectives)" -> `grammar`, "Reading comprehension - ..." -> `reading_comp`, "Writing task" -> `writing`). The app decides the placement; you only report what the cell names.
 
 ## 6. An empty cell is a correct answer
-If a cell is empty, return nothing for it. Do not guess. Do not fill it with a note.
+If a cell is empty, leave that field as an empty string `""`. Do not guess. Do not fill it with a note.
 
 ## 7. The document changes shape
-The value of the week may be on the first page or the last. Tables may split across pages. Read the whole document and assume nothing about page order. Return the value of the week in `value_of_week` (Arabic text, English translation, and source) exactly as printed, or null if there is none.
+The value of the week may be on the first page or the last. Tables may split across pages. Read the whole document and assume nothing about page order. Return the value of the week in `value_of_week` (Arabic text, English translation, and source) exactly as printed, or leave each field as `""` if there is none.
 
 ## 8. Dates
 Any date, exam, test, assessment, due date, or event mentioned anywhere goes into `dates_mentioned`, with the verbatim text and, if the date can be read from the document, an ISO date. Also copy it into the item's `homework` or `extra` so it stays with the subject.
