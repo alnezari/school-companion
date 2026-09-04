@@ -11,6 +11,7 @@ const dict = {
   en: {
     hi: "Hi", tomorrowIs: "Tomorrow is", classes: "classes", homework: "homework", toPrepare: "to get ready",
     noPlanTitle: "No plan for tomorrow yet", noPlanBody: "Enjoy your day! When the school sends the plan it will show up here.",
+    weekendTitle: "No school tomorrow", weekendBody: "Have a nice weekend! 😊",
     emptyCard: "No new lesson — get your book and things ready!", allDone: "Everything is ready for tomorrow! 🎉",
     tapToOpen: "Tap to open", parents: "Parents", tomorrow: "Tomorrow", stars: "My stars",
     lessonAbout: "What the lesson is about", pages: "Pages in your book", canDo: "By the end you should be able to…",
@@ -53,6 +54,7 @@ const dict = {
   ar: {
     hi: "أهلًا", tomorrowIs: "غدًا", classes: "حصص", homework: "واجب", toPrepare: "للتجهيز",
     noPlanTitle: "لا توجد خطة للغد بعد", noPlanBody: "استمتع بيومك! عندما ترسل المدرسة الخطة ستظهر هنا.",
+    weekendTitle: "لا مدرسة غدًا", weekendBody: "عطلة نهاية أسبوع سعيدة! 😊",
     emptyCard: "لا يوجد درس جديد — جهّز كتابك وأدواتك!", allDone: "كل شيء جاهز للغد! 🎉",
     tapToOpen: "اضغط للفتح", parents: "الوالدان", tomorrow: "الغد", stars: "نجومي",
     lessonAbout: "موضوع الدرس", pages: "الصفحات في كتابك", canDo: "في النهاية ستستطيع أن…",

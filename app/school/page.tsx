@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLang } from "@/lib/lang";
-import { t, DAY_NAMES } from "@/lib/i18n";
-import { nextSchoolDay, schoolDay, formatDate } from "@/lib/schedule";
+import { t, DAY_NAMES7 } from "@/lib/i18n";
+import { addDays, todayISO, schoolDay, weekday, formatDate } from "@/lib/schedule";
 import { buildDay, homeworkCount, loadEntries, loadPeriods, loadProgress, loadSettings, loadWeekFor, pkey, setPacked, setProgress, subscribeProgress, type Entry, type ProgressMap, type WeekRow } from "@/lib/data";
 import type { Period } from "@/lib/placement";
 import { SUBJECTS, subjectName, type SubjectKey } from "@/lib/subjects";
@@ -26,8 +26,9 @@ export default function KidPage() {
   const [lang] = useLang("kid");
   const d = t(lang);
   const [target, setTarget] = useState<string | null>(null);
-  useEffect(() => { setTarget(nextSchoolDay()); }, []);
-  const day = target ? (schoolDay(target) ?? 0) : 0;
+  useEffect(() => { setTarget(addDays(todayISO(), 1)); }, []);
+  const weekendTomorrow = target != null && schoolDay(target) === null;
+  const day = target && !weekendTomorrow ? schoolDay(target)! : 0;
 
   const [loading, setLoading] = useState(true);
   const [periods, setPeriods] = useState<Period[]>([]);
@@ -41,6 +42,7 @@ export default function KidPage() {
   useEffect(() => {
     if (!target) return;
     (async () => {
+      if (weekendTomorrow) { setSettings(await loadSettings()); setLoading(false); return; }
       const [w, s] = await Promise.all([loadWeekFor(target), loadSettings()]);
       setWeek(w); setSettings(s);
       const p = await loadPeriods(w?.timetable_id);
@@ -51,7 +53,7 @@ export default function KidPage() {
       }
       setLoading(false);
     })();
-  }, [target]);
+  }, [target, weekendTomorrow]);
   useEffect(() => {
     if (!week) return;
     return subscribeProgress(week.id, (row) => setProgressMap((m) => ({ ...m, [pkey(row.day, row.slot)]: row })));
@@ -106,10 +108,16 @@ export default function KidPage() {
   return (
     <main className="min-h-dvh bg-kid px-4 pb-8 pt-4 sm:px-6 lg:px-10">
       <KidTop className="max-w-6xl" title={<>{d.hi} {name} 👋</>} stars={doneCount}
-        sub={target && <>{d.tomorrowIs} <b className="text-ink">{DAY_NAMES[lang][day]}</b>, {formatDate(target, lang)}</>} />
+        sub={target && <>{d.tomorrowIs} <b className="text-ink">{DAY_NAMES7[lang][weekday(target)]}</b>, {formatDate(target, lang)}</>} />
 
       {loading ? (
         <p className="mx-auto mt-10 max-w-6xl text-center text-ink-2">…</p>
+      ) : weekendTomorrow ? (
+        <section className="mx-auto mt-10 max-w-md rounded-3xl bg-white p-8 text-center shadow-sm rise">
+          <div className="text-6xl">🎉</div>
+          <h2 className="mt-3 font-display text-2xl font-extrabold">{d.weekendTitle}</h2>
+          <p className="mt-2 text-ink-2">{d.weekendBody}</p>
+        </section>
       ) : !week || slots.length === 0 ? (
         <section className="mx-auto mt-10 max-w-md rounded-3xl bg-white p-8 text-center shadow-sm rise">
           <div className="text-6xl">🌤️</div>
