@@ -84,10 +84,20 @@ export default function DayPage() {
   const basket = acts.filter((a) => !a.fixed);
   const lengths = (a: Activity) => { const l = a.durations.filter((m) => m >= SNAP && m % SNAP === 0); return l.length ? l : [SNAP]; };
 
-  // ----- drag: snap to 5 minutes, never overlap, stay inside the window -----
+  // ----- time already gone: nothing new can be placed there, but two same-length past cards can swap places -----
+  const earliestAddable = win ? Math.max(win.start, Math.ceil(now / SNAP) * SNAP) : 0;
   const drag = useRef<{ key: string; y0: number; start0: number } | null>(null);
   const [ghost, setGhost] = useState<{ key: string; start: number } | null>(null);
-  const fits = (key: string, start: number, minutes: number) => !!win && start >= win.start && start + minutes <= win.end && !cards.some((c) => c.key !== key && start < c.start + c.minutes && c.start < start + c.minutes);
+  const fits = useCallback((key: string, start: number, minutes: number) => {
+    if (!win || start < win.start || start + minutes > win.end) return false;
+    const overlapping = cards.filter((o) => o.key !== key && start < o.start + o.minutes && o.start < start + minutes);
+    if (overlapping.length === 0) return start >= earliestAddable;
+    if (overlapping.length === 1) {
+      const other = overlapping[0];
+      return start < earliestAddable && other.start < earliestAddable && other.minutes === minutes && !other.locked && !other.item?.done_at;
+    }
+    return false;
+  }, [win, cards, earliestAddable]);
   function onDown(e: React.PointerEvent, c: Card) {
     if (c.locked || c.item?.done_at) return;
     drag.current = { key: c.key, y0: e.clientY, start0: c.start };
@@ -102,23 +112,27 @@ export default function DayPage() {
     if (!g || !date) return;
     const c = cards.find((x) => x.key === g.key);
     if (!c || g.start === c.start || !fits(c.key, g.start, c.minutes)) return;
-    if (c.item) {
-      setItems((it) => it.map((i) => (i.id === c.item!.id ? { ...i, start_time: toTime(g.start) } : i)));
-      await moveDayItem(c.item.id, g.start);
-    } else {
-      const row = await addDayItem(date, c.activity.id, g.start, c.minutes); // a moved fixed activity remembers its new time for today
-      if (row) setItems((it) => [...it, row]);
-    }
+    const other = cards.find((o) => o.key !== c.key && g.start < o.start + o.minutes && o.start < g.start + c.minutes);
+    const place = async (card: Card, start: number): Promise<DayItem | null> => {
+      if (card.item) { await moveDayItem(card.item.id, start); return { ...card.item, start_time: toTime(start) }; }
+      return addDayItem(date, card.activity.id, start, card.minutes); // a moved fixed activity remembers its new time for today
+    };
+    const updated = other ? await Promise.all([place(c, g.start), place(other, c.start)]) : [await place(c, g.start)];
+    setItems((it) => {
+      let next = it;
+      for (const row of updated) if (row) next = next.some((i) => i.id === row.id) ? next.map((i) => (i.id === row.id ? row : i)) : [...next, row];
+      return next;
+    });
   }
 
-  // ----- gaps: tap a free stretch to add from the basket -----
+  // ----- gaps: tap a free stretch to add from the basket. Never into time that has already gone. -----
   const gaps = useMemo(() => {
     if (!win) return [];
     const out: { start: number; end: number }[] = []; let cur = win.start;
     for (const c of cards) { if (c.start - cur >= SNAP) out.push({ start: cur, end: c.start }); cur = Math.max(cur, c.start + c.minutes); }
     if (win.end - cur >= SNAP) out.push({ start: cur, end: win.end });
-    return out;
-  }, [cards, win]);
+    return out.map((g) => ({ start: Math.max(g.start, earliestAddable), end: g.end })).filter((g) => g.end - g.start >= SNAP);
+  }, [cards, win, earliestAddable]);
   async function add(a: Activity, minutes: number) {
     if (!date || !gap) return;
     const row = await addDayItem(date, a.id, gap.start, minutes);
@@ -171,21 +185,21 @@ export default function DayPage() {
                 const start = ghost?.key === c.key ? ghost.start : c.start;
                 const isDone = !!c.item?.done_at, canDo = now >= c.start && !isDone, bad = ghost?.key === c.key && !fits(c.key, start, c.minutes);
                 const clash = !c.locked && cards.some((o) => o.key !== c.key && o.activity.fixed && start < o.start + o.minutes && o.start < start + c.minutes);
-                const gone = !isDone && now >= c.start + c.minutes;
+                const gone = !isDone && now >= c.start + c.minutes; // its time passed without being done — stays as-is, just "to do" or delete
                 const canRemove = !!c.item && !c.activity.fixed;
                 return (
                   <div key={c.key} onPointerDown={(e) => onDown(e, c)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-                    className={`absolute inset-x-0 flex select-none items-center gap-2 overflow-hidden rounded-xl border-2 px-2.5 shadow-sm ${c.locked ? "" : "touch-none"} ${ghost?.key === c.key ? "z-20 scale-[1.02] shadow-xl" : ""} ${gone ? "text-ink-2" : "text-white"}`}
-                    style={{ top: y(start) + 2, height: c.minutes * PX - 4, background: gone ? "#ffffffb3" : c.color, borderColor: bad || clash ? "#C8321E" : isDone ? "#FFD84D" : gone ? c.color : "rgba(255,255,255,.5)", transition: ghost?.key === c.key ? "none" : "top .15s", zIndex: clash ? 10 : undefined }}>
+                    className={`absolute inset-x-0 flex select-none items-center gap-2 overflow-hidden rounded-xl border-2 px-2.5 text-white shadow-sm ${c.locked ? "" : "touch-none"} ${ghost?.key === c.key ? "z-20 scale-[1.02] shadow-xl" : ""} ${isDone ? "opacity-55" : ""}`}
+                    style={{ top: y(start) + 2, height: c.minutes * PX - 4, background: c.color, borderColor: bad || clash ? "#C8321E" : "rgba(255,255,255,.5)", transition: ghost?.key === c.key ? "none" : "top .15s", zIndex: clash ? 10 : undefined }}>
                     <span className="text-xl">{c.activity.icon}</span>
                     <div className="min-w-0 flex-1 leading-tight">
                       <div className="truncate font-display text-sm font-extrabold" dir="auto">{c.name}{c.locked && <span className="ms-1 text-xs opacity-80">🔒</span>}</div>
-                      <div className="truncate text-[11px] opacity-90">{clash ? <span className="font-bold text-white"><span className="rounded bg-red px-1">{d.needsMove}</span></span> : gone ? d.gone : <>{fmt12(c.start, lang)} · {c.minutes} {d.minutes}{c.activity.stars > 0 && <> · {"⭐".repeat(Math.min(c.activity.stars, 3))}</>}</>}</div>
+                      <div className="truncate text-[11px] opacity-90">{clash ? <span className="font-bold text-white"><span className="rounded bg-red px-1">{d.needsMove}</span></span> : gone ? <span className="font-bold">{d.gone}</span> : <>{fmt12(c.start, lang)} · {c.minutes} {d.minutes}{c.activity.stars > 0 && <> · {"⭐".repeat(Math.min(c.activity.stars, 3))}</>}</>}</div>
                     </div>
-                    {isDone ? <button onPointerDown={(e) => e.stopPropagation()} onClick={() => undo(c)} aria-label={d.notYet} className={`rounded-full bg-white/25 px-2 py-0.5 text-lg ${burst === c.key ? "pop" : ""}`}>⭐</button>
+                    {isDone ? <button onPointerDown={(e) => e.stopPropagation()} onClick={() => undo(c)} aria-label={d.notYet} className={`grid h-7 w-7 shrink-0 place-items-center rounded-full bg-green text-base font-extrabold text-white ${burst === c.key ? "pop" : ""}`}>✓</button>
                       : <>
-                        {canDo && <button onPointerDown={(e) => e.stopPropagation()} onClick={() => done(c)} className="rounded-full bg-white px-2.5 py-0.5 font-display text-xs font-extrabold" style={{ color: c.color }}>✓ {d.doneStar}</button>}
-                        {canRemove && <button onPointerDown={(e) => e.stopPropagation()} onClick={() => remove(c)} aria-label={d.remove} className={`rounded-full px-2 py-0.5 text-sm font-bold ${gone ? "bg-ink/10" : "bg-white/25"}`}>✕</button>}
+                        {canDo && !gone && <button onPointerDown={(e) => e.stopPropagation()} onClick={() => done(c)} className="rounded-full bg-white px-2.5 py-0.5 font-display text-xs font-extrabold" style={{ color: c.color }}>✓ {d.doneStar}</button>}
+                        {canRemove && <button onPointerDown={(e) => e.stopPropagation()} onClick={() => remove(c)} aria-label={d.remove} className="rounded-full bg-white/25 px-2 py-0.5 text-sm font-bold">✕</button>}
                       </>}
                   </div>
                 );
