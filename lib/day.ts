@@ -9,7 +9,8 @@ export interface Activity {
   id: string; name_en: string; name_ar: string; icon: string; category: string; durations: number[]; stars: number; max_minutes_per_day: number | null; active: boolean; sort: number;
   fixed: boolean; start_time: string | null; minutes: number | null; days: number[]; repeat: "weekly" | "once"; on_date: string | null; locked: boolean;
 }
-export interface DayItem { id: string; date: string; activity_id: string; start_time: string; minutes: number; done_at: string | null }
+export interface DayItem { id: string; date: string; activity_id: string; start_time: string; minutes: number; done_at: string | null; not_done_at: string | null }
+export type DayStatus = "done" | "not_done" | null;
 export interface DayConfig { home: string; bed: string; wake: string }
 
 /** The palette parents can pick from for a new category. */
@@ -61,8 +62,10 @@ export async function moveDayItem(id: string, start: number) {
 export async function removeDayItem(id: string) {
   await supabase().from("day_items").delete().eq("id", id);
 }
-export async function setDone(id: string, done: boolean) {
-  await supabase().from("day_items").update({ done_at: done ? new Date().toISOString() : null }).eq("id", id);
+/** Once an item's time has come he says how it went: done, not done, or (tap again) undecided. */
+export async function setStatus(id: string, status: DayStatus) {
+  const now = new Date().toISOString();
+  await supabase().from("day_items").update({ done_at: status === "done" ? now : null, not_done_at: status === "not_done" ? now : null }).eq("id", id);
 }
 export function subscribeDayItems(iso: string, onChange: () => void) {
   const ch = supabase().channel(`day-${iso}`)
