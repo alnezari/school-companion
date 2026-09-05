@@ -31,6 +31,8 @@ export default function SettingsPage() {
   const [pw, setPw] = useState(""); const [pw2, setPw2] = useState("");
   const [pin, setPin] = useState("");
   const [pinOn, setPinOn] = useState(true);
+  const [quickPin, setQuickPin] = useState("");
+  const [quickPinSet, setQuickPinSet] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [cfg, setCfg] = useState<DayConfig | null>(null);
   const [notifState, setNotifState] = useState<NotifState | null>(null);
@@ -40,7 +42,7 @@ export default function SettingsPage() {
   useEffect(() => { if (!isParentUnlocked()) router.replace("/"); }, [router]);
   useEffect(() => {
     loadSettings().then((s) => {
-      setPin(s.parent_pin ?? ""); setPinOn(s.parent_pin_enabled !== "false"); setCfg(configFrom(s));
+      setPin(s.parent_pin ?? ""); setPinOn(s.parent_pin_enabled !== "false"); setCfg(configFrom(s)); setQuickPinSet(!!s.login_pin_hash);
       setNotifBagPacked(s.notif_bag_packed !== "false"); setNotifNoPlan(s.notif_no_plan_reminder !== "false");
     });
     (async () => { const { data } = await supabase().auth.getUser(); setEmail(data.user?.email ?? ""); })();
@@ -60,6 +62,13 @@ export default function SettingsPage() {
       const { error } = await supabase().auth.updateUser({ email: newEmail.trim() });
       if (error) return setMsg(error.message);
       setNewEmail(""); setMsg(d.emailSent);
+    }
+    if (quickPin) {
+      if (!/^\d{6}$/.test(quickPin)) return setMsg(d.quickPinBad);
+      const { data } = await supabase().auth.getUser();
+      const bytes = new TextEncoder().encode(`${quickPin}:${data.user?.id}`);
+      const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join("");
+      await saveSetting("login_pin_hash", hash); setQuickPin(""); setQuickPinSet(true);
     }
     await Promise.all([saveSetting("parent_pin", pin.trim()), saveSetting("parent_pin_enabled", pinOn ? "true" : "false")]);
     setMsg((m) => m ?? d.saved);
@@ -96,6 +105,13 @@ export default function SettingsPage() {
           <div className="mt-3 grid grid-cols-2 gap-3">
             <label className="block text-sm font-medium">{d.newPassword}<input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" className={input} /></label>
             <label className="block text-sm font-medium">{d.confirmPassword}<input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" className={input} /></label>
+          </div>
+          <div className="mt-4 border-t border-line pt-3">
+            <label className="block text-sm font-medium">🔑 {d.quickPin}{quickPinSet && <span className="ms-2 rounded-full bg-green-soft px-2 text-xs text-green">✓</span>}
+              <input value={quickPin} onChange={(e) => setQuickPin(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="••••••" className={`${input} tracking-[.4em]`} />
+            </label>
+            <p className="mt-1 text-xs text-ink-2">{d.quickPinHint}</p>
+            {quickPinSet && <button type="button" onClick={async () => { await saveSetting("login_pin_hash", ""); setQuickPinSet(false); setMsg(d.saved); }} className="mt-1 text-xs font-semibold text-red">{d.delete}</button>}
           </div>
           <div className="mt-4 border-t border-line pt-3">
             <Switch on={pinOn} onChange={setPinOn} label={`🔢 ${d.pinEnabled}`} />

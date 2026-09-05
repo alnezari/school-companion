@@ -88,7 +88,7 @@ export default function DayPage() {
   const earliestAddable = win ? Math.max(win.start, Math.ceil(now / SNAP) * SNAP) : 0;
   const drag = useRef<{ key: string; y0: number; start0: number } | null>(null);
   const [ghost, setGhost] = useState<{ key: string; start: number } | null>(null);
-  const immovable = useCallback((o: Card) => o.locked || o.start <= now, [now]);
+  const immovable = useCallback((o: Card) => o.locked || o.start + o.minutes <= now, [now]); // running items can still move
   /** Where everything ends up if card c is dropped at S. Dropping onto other cards pushes them out of the way, keeping their order. */
   const planMove = useCallback((c: Card, S: number): { card: Card; start: number }[] | null => {
     if (!win) return null;
@@ -173,9 +173,13 @@ export default function DayPage() {
     const occupied = cards.reduce((n, c) => n + c.minutes, 0);
     let done = 0, notDone = 0, remaining = 0;
     for (const c of cards) { if (c.item?.done_at) done++; else if (c.item?.not_done_at) notDone++; else remaining++; }
-    const byCat = new Map<string, { minutes: number; count: number }>();
-    for (const c of cards) { const e = byCat.get(c.activity.category) ?? { minutes: 0, count: 0 }; e.minutes += c.minutes; e.count++; byCat.set(c.activity.category, e); }
-    return { free: Math.max(0, win.end - win.start - occupied), done, notDone, remaining, byCat: [...byCat.entries()].sort((a, b) => b[1].minutes - a[1].minutes) };
+    const byCat = new Map<string, { planned: number; actual: number; count: number }>();
+    for (const c of cards) {
+      const e = byCat.get(c.activity.category) ?? { planned: 0, actual: 0, count: 0 };
+      e.planned += c.minutes; if (c.item?.done_at) { e.actual += c.minutes; e.count++; }
+      byCat.set(c.activity.category, e);
+    }
+    return { free: Math.max(0, win.end - win.start - occupied), done, notDone, remaining, byCat: [...byCat.entries()].sort((a, b) => b[1].actual - a[1].actual || b[1].planned - a[1].planned) };
   }, [cards, win]);
   const hrs = (m: number) => `${m % 60 === 0 ? m / 60 : (m / 60).toFixed(1)} ${d.hoursShort}`;
 
@@ -262,13 +266,16 @@ export default function DayPage() {
             {stats.byCat.length === 0 ? <p className="mt-3 text-sm text-ink-2">{d.nothingPlanned}</p> : (
               <ul className="mt-3 space-y-2">
                 {stats.byCat.map(([key, v]) => {
-                  const max = stats.byCat[0][1].minutes;
+                  const max = Math.max(...stats.byCat.map(([, x]) => x.planned));
                   return (
                     <li key={key} className="flex items-center gap-2 text-sm">
                       <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: catColor(cats, key) }} />
                       <span className="w-20 shrink-0 truncate font-semibold" dir="auto">{catName(cats, key, lang)}</span>
-                      <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-paper"><span className="block h-full rounded-full" style={{ width: `${(v.minutes / max) * 100}%`, background: catColor(cats, key) }} /></span>
-                      <span className="w-24 shrink-0 text-end text-xs text-ink-2">{hrs(v.minutes)} · {v.count} {d.blocksShort}</span>
+                      <span className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-paper">
+                        <span className="absolute inset-y-0 start-0 rounded-full opacity-25" style={{ width: `${(v.planned / max) * 100}%`, background: catColor(cats, key) }} />
+                        <span className="absolute inset-y-0 start-0 rounded-full" style={{ width: `${(v.actual / max) * 100}%`, background: catColor(cats, key) }} />
+                      </span>
+                      <span className="w-24 shrink-0 text-end text-xs text-ink-2">{hrs(v.actual)} · {v.count} {d.blocksShort}</span>
                     </li>
                   );
                 })}
