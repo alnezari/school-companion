@@ -1,0 +1,3 @@
+-- Web Push subscriptions, one row per device that turned notifications on. Applied as migration "push_notifications".
+-- push_subscriptions(id, endpoint unique, p256dh, auth, created_at)
+-- Which notifications to send is a plain settings toggle: notif_bag_packed, notif_no_plan_reminder (default "true" when absent).

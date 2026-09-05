@@ -49,6 +49,10 @@ const dict = {
     packTitle: "Well done, you finished all your studies! 🎒 Now pack your bag", packHint: "Drag each book into the bag", myBag: "My bag", packed: "packed", bagReady: "Bag is ready!",
     account: "Account", email: "Email", newEmail: "New email", newPassword: "New password", confirmPassword: "Repeat password", update: "Update", emailSent: "Check both inboxes to confirm the new email", passwordUpdated: "Password updated", passwordMismatch: "The two passwords differ", passwordShort: "At least 6 characters",
     fixedSection: "Fixed time", basketSection: "Basket", clashesWith: "Clashes with", outsideWindow: "Outside his day window", needsMove: "Clashes, remove it", gone: "time passed",
+    notifications: "Notifications", notifOn: "On for this device", notifOff: "Off on this device", notifEnable: "Turn on notifications",
+    notifDisable: "Turn off on this device", notifDenied: "Notifications are blocked in your phone's settings for this app.",
+    notifUnsupported: "This browser can't receive notifications.", notifIosHint: "On iPhone or iPad: tap Share, then \"Add to Home Screen\", open Tomorrow First from there, then come back here.",
+    notifBagPacked: "🎒 Taym packed his bag", notifNoPlan: "📄 Remind me if I forget to upload the plan", notifError: "Something went wrong turning that on.",
     subject: "Subject", ttUploaded: "Timetable saved", periodsRead: "periods read", ttBody: "Pick the picture or PDF of the grid the school sent. Tap any period below to fix it by hand.", ttReading: "Reading the timetable with Claude…",
   },
   ar: {
@@ -92,6 +96,10 @@ const dict = {
     packTitle: "أحسنت، أنهيت كل دراستك! 🎒 الآن جهّز حقيبتك", packHint: "اسحب كل كتاب إلى الحقيبة", myBag: "حقيبتي", packed: "في الحقيبة", bagReady: "الحقيبة جاهزة!",
     account: "الحساب", email: "البريد", newEmail: "بريد جديد", newPassword: "كلمة مرور جديدة", confirmPassword: "أعد كلمة المرور", update: "تحديث", emailSent: "تحقق من البريدين لتأكيد البريد الجديد", passwordUpdated: "تم تحديث كلمة المرور", passwordMismatch: "كلمتا المرور مختلفتان", passwordShort: "٦ أحرف على الأقل",
     fixedSection: "وقت ثابت", basketSection: "السلة", clashesWith: "يتعارض مع", outsideWindow: "خارج نافذة يومه", needsMove: "يتعارض، أزله", gone: "فات وقته",
+    notifications: "الإشعارات", notifOn: "مفعّل على هذا الجهاز", notifOff: "غير مفعّل على هذا الجهاز", notifEnable: "تفعيل الإشعارات",
+    notifDisable: "إيقاف على هذا الجهاز", notifDenied: "الإشعارات محجوبة لهذا التطبيق في إعدادات هاتفك.",
+    notifUnsupported: "هذا المتصفح لا يدعم الإشعارات.", notifIosHint: "على الآيفون أو الآيباد: اضغط مشاركة ثم \"إضافة إلى الشاشة الرئيسية\"، ثم افتح Tomorrow First من هناك وعُد إلى هنا.",
+    notifBagPacked: "🎒 تيم جهّز حقيبته", notifNoPlan: "📄 ذكّرني إن نسيت رفع الخطة", notifError: "حدث خطأ أثناء التفعيل.",
     subject: "المادة", ttUploaded: "تم حفظ الجدول", periodsRead: "حصة قُرئت", ttBody: "اختر صورة أو PDF الجدول الذي أرسلته المدرسة. اضغط أي حصة أدناه لتصحيحها يدويًا.", ttReading: "جارٍ قراءة الجدول بواسطة Claude…",
   },
 };

@@ -8,6 +8,7 @@ import { loadSettings, saveSetting } from "@/lib/data";
 import { supabase } from "@/lib/supabase/client";
 import { isParentUnlocked } from "@/components/ParentGate";
 import { LangToggle } from "@/components/LangToggle";
+import { enableNotifications, disableNotifications, getNotifState, type NotifState } from "@/lib/notifications";
 
 // Global settings: things that belong to no single app.
 export default function SettingsPage() {
@@ -21,11 +22,31 @@ export default function SettingsPage() {
   const [newEmail, setNewEmail] = useState("");
   const [pw, setPw] = useState(""); const [pw2, setPw2] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [notifState, setNotifState] = useState<NotifState | null>(null);
+  const [notifBusy, setNotifBusy] = useState(false);
+  const [notifBagPacked, setNotifBagPacked] = useState(true);
+  const [notifNoPlan, setNotifNoPlan] = useState(true);
   useEffect(() => { if (!isParentUnlocked()) router.replace("/"); }, [router]);
   useEffect(() => {
-    loadSettings().then((s) => { setName(s.child_name ?? ""); setPin(s.parent_pin ?? ""); });
+    loadSettings().then((s) => {
+      setName(s.child_name ?? ""); setPin(s.parent_pin ?? "");
+      setNotifBagPacked(s.notif_bag_packed !== "false"); setNotifNoPlan(s.notif_no_plan_reminder !== "false");
+    });
     (async () => { const { data } = await supabase().auth.getUser(); setEmail(data.user?.email ?? ""); })();
+    getNotifState().then(setNotifState);
   }, []);
+
+  async function toggleNotifications() {
+    setNotifBusy(true);
+    try {
+      if (notifState === "on") { await disableNotifications(); setNotifState("off"); }
+      else { setNotifState(await enableNotifications()); }
+    } catch { setMsg(d.notifError); } finally { setNotifBusy(false); }
+  }
+  async function setNotifPref(key: "notif_bag_packed" | "notif_no_plan_reminder", value: boolean, setter: (v: boolean) => void) {
+    setter(value);
+    await saveSetting(key, value ? "true" : "false");
+  }
   async function updateAccount(e: React.FormEvent) {
     e.preventDefault(); setMsg(null);
     if (pw || pw2) {
@@ -76,6 +97,36 @@ export default function SettingsPage() {
           {msg && <p className="mt-2 text-sm font-semibold text-accent">{msg}</p>}
           <button className="mt-4 w-full rounded-xl bg-ink py-2 font-semibold text-white">{d.update}</button>
         </form>
+        <section className="mt-3 rounded-2xl border border-line bg-white p-4">
+          <h2 className="font-display font-extrabold">🔔 {d.notifications}</h2>
+          {notifState === "unsupported" ? (
+            <p className="mt-2 text-sm text-ink-2">{d.notifUnsupported}</p>
+          ) : notifState === "ios_not_installed" ? (
+            <p className="mt-2 text-sm text-ink-2">{d.notifIosHint}</p>
+          ) : notifState === "denied" ? (
+            <p className="mt-2 text-sm text-ink-2">{d.notifDenied}</p>
+          ) : (
+            <>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <span className="text-sm text-ink-2">{notifState === "on" ? d.notifOn : d.notifOff}</span>
+                <button type="button" onClick={toggleNotifications} disabled={notifBusy || notifState === null}
+                  className={`shrink-0 rounded-xl px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50 ${notifState === "on" ? "bg-red" : "bg-accent"}`}>
+                  {notifState === "on" ? d.notifDisable : d.notifEnable}
+                </button>
+              </div>
+              <div className="mt-4 space-y-2 border-t border-line pt-3">
+                <label className="flex items-center justify-between gap-3 text-sm font-medium">
+                  {d.notifBagPacked}
+                  <input type="checkbox" checked={notifBagPacked} onChange={(e) => setNotifPref("notif_bag_packed", e.target.checked, setNotifBagPacked)} className="h-5 w-5" />
+                </label>
+                <label className="flex items-center justify-between gap-3 text-sm font-medium">
+                  {d.notifNoPlan}
+                  <input type="checkbox" checked={notifNoPlan} onChange={(e) => setNotifPref("notif_no_plan_reminder", e.target.checked, setNotifNoPlan)} className="h-5 w-5" />
+                </label>
+              </div>
+            </>
+          )}
+        </section>
         <button type="button" onClick={logout} className="mt-4 w-full rounded-xl border border-line py-2 text-sm font-semibold text-ink-2">{d.logout}</button>
       </div>
     </main>

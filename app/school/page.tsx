@@ -76,6 +76,13 @@ export default function KidPage() {
     if (!week) return;
     const packed_at = await setPacked(week.id, day, slot, packed);
     setProgressMap((m) => ({ ...m, [pkey(day, slot)]: { ...m[pkey(day, slot)], packed_at } }));
+    // A push to the parent's phone the moment the last book goes in — not on every later page load.
+    if (packed && target) {
+      const nowAllPacked = slots.every((s) => (s.period.slot === slot ? true : !!progress[pkey(day, s.period.slot)]?.packed_at));
+      if (nowAllPacked) {
+        fetch("/api/notify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "bag_packed", date: target }) }).catch(() => {});
+      }
+    }
   }
   function bookDown(e: React.PointerEvent, slot: number) {
     dragRef.current = { slot, x0: e.clientX, y0: e.clientY, moved: false };
