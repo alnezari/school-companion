@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { SPRING } from "@/lib/motion";
 
 /** The one button style for the child's side: a white pill, big enough for a small hand. */
 export const kidBtn = "inline-flex h-12 items-center justify-center gap-1.5 rounded-full border border-line bg-white px-4 font-display text-xl font-extrabold text-ink shadow-sm transition active:scale-95";
@@ -13,7 +15,11 @@ export function KidTop({ title, sub, stars, className = "" }: { title: ReactNode
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <Link href="/" aria-label="Home" className={`${kidBtn} w-12 px-0`}>🏠</Link>
-        {stars !== undefined && <Link href="/stars" aria-label="Stars" className={kidBtn}>⭐{stars != null && <span className="tabular-nums">{stars}</span>}</Link>}
+        {stars !== undefined && <Link href="/stars" aria-label="Stars" className={kidBtn}>⭐{stars != null && (
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span key={stars} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 1.4, opacity: 0 }} transition={SPRING.bouncy} className="inline-block tabular-nums">{stars}</motion.span>
+          </AnimatePresence>
+        )}</Link>}
       </div>
     </header>
   );

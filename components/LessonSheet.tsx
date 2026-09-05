@@ -1,13 +1,15 @@
 "use client";
 import { useState } from "react";
+import { motion } from "motion/react";
+import { SPRING, EASE_MOVE, DUR } from "@/lib/motion";
 import type { Entry } from "@/lib/data";
 import type { Period } from "@/lib/placement";
 import { SUBJECTS, subjectName, type SubjectKey } from "@/lib/subjects";
 import type { Dict, Lang } from "@/lib/i18n";
 
 function hostOf(l: string) { try { return new URL(l).hostname; } catch { return l; } }
-export function LessonSheet({ period, entry, done, lang, d, onClose, onDone }:
-  { period: Period; entry: Entry | null; done: boolean; lang: Lang; d: Dict; onClose: () => void; onDone: (done: boolean, feeling?: "easy" | "ok" | "hard") => void }) {
+export function LessonSheet({ period, entry, done, lang, d, onClose, onDone, layoutId }:
+  { period: Period; entry: Entry | null; done: boolean; lang: Lang; d: Dict; onClose: () => void; onDone: (done: boolean, feeling?: "easy" | "ok" | "hard") => void; layoutId?: string }) {
   const meta = SUBJECTS[period.subject_key as SubjectKey];
   const [step, setStep] = useState<"idle" | "feeling">("idle");
   const Part = ({ label, text, big = false, red = false }: { label: string; text: string | null; big?: boolean; red?: boolean }) =>
@@ -20,8 +22,10 @@ export function LessonSheet({ period, entry, done, lang, d, onClose, onDone }:
   const title = [entry?.topic, entry?.lesson].filter(Boolean).join(" — ");
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl rise">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: DUR.base, ease: EASE_MOVE } }} transition={{ duration: DUR.base }}
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+      <motion.div layoutId={layoutId} transition={SPRING.spatial} onClick={(e) => e.stopPropagation()}
+        className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl" style={{ borderRadius: 24 }}>
         <div className="flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-2xl text-2xl text-white" style={{ background: meta.color }}>{meta.icon}</span>
           <div className="flex-1">
@@ -63,23 +67,24 @@ export function LessonSheet({ period, entry, done, lang, d, onClose, onDone }:
               <button onClick={() => onDone(false)} className="mt-2 text-sm text-ink-2 underline">{d.undo}</button>
             </div>
           ) : step === "feeling" ? (
-            <div className="rise">
+            <div>
               <div className="text-center font-display text-xl font-extrabold">{d.howFelt}</div>
               <div className="mt-3 grid grid-cols-3 gap-2">
-                {([["easy", "😄", d.feelEasy, d.feelEasySub], ["ok", "🙂", d.feelOk, d.feelOkSub], ["hard", "😕", d.feelHard, d.feelHardSub]] as const).map(([k, face, label, sub]) => (
-                  <button key={k} onClick={() => onDone(true, k)} className="rounded-2xl border-2 border-line bg-paper px-2 py-4 text-center active:scale-95">
+                {([["easy", "😄", d.feelEasy, d.feelEasySub], ["ok", "🙂", d.feelOk, d.feelOkSub], ["hard", "😕", d.feelHard, d.feelHardSub]] as const).map(([k, face, label, sub], i) => (
+                  <motion.button key={k} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ ...SPRING.bouncy, delay: i * 0.07 }} whileTap={{ scale: 0.94 }}
+                    onClick={() => onDone(true, k)} className="rounded-2xl border-2 border-line bg-paper px-2 py-4 text-center">
                     <div className="text-4xl">{face}</div>
                     <div className="mt-1 font-display text-lg font-extrabold">{label}</div>
                     <div className="text-xs text-ink-2">{sub}</div>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
           ) : (
-            <button onClick={() => setStep("feeling")} className="w-full rounded-2xl bg-green py-4 font-display text-xl font-extrabold text-white">✅ {d.done}</button>
+            <motion.button whileTap={{ scale: 0.97 }} transition={SPRING.follow} onClick={() => setStep("feeling")} className="w-full rounded-2xl bg-green py-4 font-display text-xl font-extrabold text-white">✅ {d.done}</motion.button>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

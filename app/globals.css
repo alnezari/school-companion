@@ -16,6 +16,9 @@
   --color-green: #1E8E4E;
   --color-green-soft: #DDF3E5;
   --color-kid: #FFF7E6;
+  /* motion tokens (mirrored in lib/motion.ts) */
+  --d-fast: 120ms; --d-base: 220ms; --d-slow: 320ms;
+  --e-out: cubic-bezier(.165,.84,.44,1); --e-move: cubic-bezier(.645,.045,.355,1);
 }
 
 html { color-scheme: light; }
