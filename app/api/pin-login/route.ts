@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // Quick sign-in with a 6-digit PIN. The PIN never replaces the account: a correct PIN exchanges for a normal
 // Supabase session for the family user (via a server-side magic link), so every security rule still applies.
-export const pinHash = (pin: string, userId: string) => createHash("sha256").update(`${pin}:${userId}`).digest("hex");
+const pinHash = (pin: string, userId: string) => createHash("sha256").update(`${pin}:${userId}`).digest("hex");
 const MAX_TRIES = 5, LOCK_MINUTES = 15;
 
 async function settingsMap(keys: string[]) {
