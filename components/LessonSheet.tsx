@@ -24,8 +24,8 @@ export function LessonSheet({ period, entry, done, lang, d, onClose, onDone, lay
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: DUR.base, ease: EASE_MOVE } }} transition={{ duration: DUR.base }}
       className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
-      <motion.div layoutId={layoutId} transition={SPRING.spatial} onClick={(e) => e.stopPropagation()}
-        className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl" style={{ borderRadius: 24 }}>
+      <motion.div initial={{ y: 48, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0, transition: { duration: DUR.base, ease: EASE_MOVE } }} transition={SPRING.gentle}
+        onClick={(e) => e.stopPropagation()} className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
         <div className="flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-2xl text-2xl text-white" style={{ background: meta.color }}>{meta.icon}</span>
           <div className="flex-1">

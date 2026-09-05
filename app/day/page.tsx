@@ -1,5 +1,7 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion, animate, useMotionValue, AnimatePresence, type PanInfo } from "motion/react";
+import { SPRING, enter } from "@/lib/motion";
 import { useLang } from "@/lib/lang";
 import { t, DAY_NAMES7 } from "@/lib/i18n";
 import { todayISO, formatDate, fmt12, TZ } from "@/lib/schedule";
@@ -29,13 +31,58 @@ function skyGradient(start: number, end: number) {
   return `linear-gradient(to bottom, #FFFBEA ${pct(start)}, #FFF4DF ${pct(17 * 60)}, #EEF1F9 ${pct(18 * 60 + 30)}, #E6EAF6 ${pct(end)})`;
 }
 
+/** One block on the timeline. Its vertical position is a motion value: the finger drags it, springs settle it, neighbours slide aside. */
+function Block({ card: c, top, previewTop, settle, movable, bad, clash, status, arrived, canRemove, burst, lang, d, onDrag, onDragEnd, onJudge, onRemove }: {
+  card: Card; top: number; previewTop?: number; settle: number; movable: boolean; bad: boolean; clash: boolean; status: DayStatus; arrived: boolean; canRemove: boolean; burst: boolean;
+  lang: "en" | "ar"; d: ReturnType<typeof t>; onDrag: (info: PanInfo) => void; onDragEnd: () => void; onJudge: (s: DayStatus) => void; onRemove: () => void;
+}) {
+  const yv = useMotionValue(top);
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => { if (!dragging) animate(yv, previewTop ?? top, previewTop != null ? SPRING.gentle : SPRING.spatial); }, [top, previewTop, settle, dragging, yv]);
+  const stop = (e: React.PointerEvent) => e.stopPropagation();
+  return (
+    <motion.div style={{ y: yv, top: 0, height: c.minutes * PX - 4, background: status ? `${c.color}80` : c.color, borderColor: bad || clash ? "#C8321E" : status ? "transparent" : "rgba(255,255,255,.5)", zIndex: dragging ? 30 : clash ? 10 : undefined }}
+      drag={movable ? "y" : false} dragMomentum={false} dragElastic={0.05} onDragStart={() => setDragging(true)} onDrag={(_e, info) => onDrag(info)} onDragEnd={() => { setDragging(false); onDragEnd(); }}
+      whileDrag={{ scale: 1.03, boxShadow: "0 18px 30px -14px rgba(0,0,0,.55)" }} whileTap={movable ? { scale: 1.01 } : undefined}
+      className={`absolute inset-x-0 flex select-none items-center gap-2 overflow-hidden rounded-xl border-2 px-2.5 text-white shadow-sm ${movable ? "touch-none cursor-grab" : ""}`}>
+      <div className={`flex min-w-0 flex-1 items-center gap-2 ${status ? "opacity-70" : ""}`}>
+        <span className="text-xl">{c.activity.icon}</span>
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="truncate font-display text-sm font-extrabold" dir="auto">{c.name}{c.locked && <span className="ms-1 text-xs opacity-80">🔒</span>}</div>
+          <div className="truncate text-[11px] opacity-90">{clash ? <span className="font-bold text-white"><span className="rounded bg-red px-1">{d.needsMove}</span></span> : <>{fmt12(c.start, lang)} · {c.minutes} {d.minutes}{c.activity.stars > 0 && <> · {"⭐".repeat(Math.min(c.activity.stars, 3))}</>}</>}</div>
+        </div>
+      </div>
+      <AnimatePresence mode="popLayout" initial={false}>
+        {status === "done" ? (
+          <motion.button key="done" initial={{ scale: 0.5 }} animate={{ scale: 1 }} exit={{ scale: 0.5, opacity: 0 }} transition={SPRING.bouncy} onPointerDown={stop} onClick={() => onJudge(null)} aria-label={d.doneStar}
+            className="relative grid h-7 w-7 shrink-0 place-items-center rounded-full bg-green text-base font-extrabold text-white">✓
+            {burst && <motion.span initial={{ scale: 0.8, opacity: 0.9 }} animate={{ scale: 2, opacity: 0 }} transition={{ duration: 0.5, ease: "easeOut" }} className="absolute inset-0 rounded-full border-2 border-green" />}
+          </motion.button>
+        ) : status === "not_done" ? (
+          <motion.button key="no" initial={{ x: -6 }} animate={{ x: [0, -5, 5, -3, 0] }} transition={{ duration: 0.35 }} onPointerDown={stop} onClick={() => onJudge(null)} aria-label={d.notDone}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-red text-base font-extrabold text-white">✕</motion.button>
+        ) : arrived ? (
+          <motion.span key="judge" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={SPRING.gentle} className="flex shrink-0 gap-1">
+            <motion.button whileTap={{ scale: 0.9 }} onPointerDown={stop} onClick={() => onJudge("done")} aria-label={d.doneStar} className="grid h-7 w-7 place-items-center rounded-full bg-white text-base font-extrabold text-green">✓</motion.button>
+            <motion.button whileTap={{ scale: 0.9 }} onPointerDown={stop} onClick={() => onJudge("not_done")} aria-label={d.notDone} className="grid h-7 w-7 place-items-center rounded-full bg-white/30 text-base font-extrabold text-white">✕</motion.button>
+          </motion.span>
+        ) : canRemove ? (
+          <motion.button key="rm" whileTap={{ scale: 0.9 }} onPointerDown={stop} onClick={onRemove} aria-label={d.remove} className="rounded-full bg-white/25 px-2 py-0.5 text-sm font-bold">✕</motion.button>
+        ) : null}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 export default function DayPage() {
   const [lang] = useLang("kid");
   const d = t(lang);
   const [date, setDate] = useState<string | null>(null);
   const [now, setNow] = useState(0);
   useEffect(() => {
-    const tick = () => { setDate(todayISO()); setNow(nowMinutes()); };
+    const q = new URLSearchParams(window.location.search);
+    const fakeT = q.get("t"), fakeD = q.get("date"); // testing at night: /day?t=16:30 (and optionally &date=YYYY-MM-DD)
+    const tick = () => { setDate(fakeD && /^\d{4}-\d{2}-\d{2}$/.test(fakeD) ? fakeD : todayISO()); setNow(fakeT && /^\d{1,2}:\d{2}$/.test(fakeT) ? toMin(fakeT) : nowMinutes()); };
     tick(); const id = setInterval(tick, 30_000); return () => clearInterval(id);
   }, []);
 
@@ -86,8 +133,8 @@ export default function DayPage() {
 
   // ----- the red line splits the day: what is above it can only be judged (done / not done); what is below can be moved or deleted -----
   const earliestAddable = win ? Math.max(win.start, Math.ceil(now / SNAP) * SNAP) : 0;
-  const drag = useRef<{ key: string; y0: number; start0: number } | null>(null);
-  const [ghost, setGhost] = useState<{ key: string; start: number } | null>(null);
+  const [preview, setPreview] = useState<{ key: string; S: number; plan: Map<string, number> | null } | null>(null);
+  const [settle, setSettle] = useState(0);
   const immovable = useCallback((o: Card) => o.locked || o.start + o.minutes <= now, [now]); // running items can still move
   /** Where everything ends up if card c is dropped at S. Dropping onto other cards pushes them out of the way, keeping their order. */
   const planMove = useCallback((c: Card, S: number): { card: Card; start: number }[] | null => {
@@ -114,22 +161,17 @@ export default function DayPage() {
     }
     return plan;
   }, [win, cards, earliestAddable, immovable]);
-  function onDown(e: React.PointerEvent, c: Card) {
-    if (immovable(c)) return; // its time has come: it stays where it is
-    drag.current = { key: c.key, y0: e.clientY, start0: c.start };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  function onDrag(c: Card, info: PanInfo) {
+    const S = c.start + Math.round(info.offset.y / PX / SNAP) * SNAP;
+    if (preview && preview.key === c.key && preview.S === S) return;
+    const plan = planMove(c, S);
+    setPreview({ key: c.key, S, plan: plan ? new Map(plan.filter((p) => p.card.key !== c.key).map((p) => [p.card.key, p.start])) : null });
   }
-  function onMove(e: React.PointerEvent) {
-    if (!drag.current) return;
-    setGhost({ key: drag.current.key, start: drag.current.start0 + Math.round((e.clientY - drag.current.y0) / PX / SNAP) * SNAP });
-  }
-  async function onUp() {
-    const g = ghost; drag.current = null; setGhost(null);
-    if (!g || !date) return;
-    const c = cards.find((x) => x.key === g.key);
-    if (!c || g.start === c.start) return;
-    const plan = planMove(c, g.start);
-    if (!plan) return;
+  async function onDragEnd(c: Card) {
+    const S = preview?.key === c.key ? preview.S : c.start;
+    const plan = S !== c.start ? planMove(c, S) : null;
+    setPreview(null); setSettle((n) => n + 1);
+    if (!plan || !date) return;
     const place = async (card: Card, start: number): Promise<DayItem | null> => {
       if (card.item) { await moveDayItem(card.item.id, start); return { ...card.item, start_time: toTime(start) }; }
       return addDayItem(date, card.activity.id, start, card.minutes); // a moved fixed activity remembers its new time for today
@@ -204,44 +246,28 @@ export default function DayPage() {
             ))}
             <div className="absolute inset-y-0 start-[4.5rem] end-2">
               {gaps.map((g) => (
-                <button key={g.start} onClick={() => setGap(g)} className="absolute inset-x-0 rounded-2xl border-2 border-dashed border-transparent text-sm font-bold text-accent/70 transition hover:border-accent/40"
+                <motion.button key={g.start} whileTap={{ scale: 0.98 }} onClick={() => setGap(g)} className="absolute inset-x-0 rounded-2xl border-2 border-dashed border-transparent text-sm font-bold text-accent/70 transition hover:border-accent/40"
                   style={{ top: y(g.start) + 2, height: (g.end - g.start) * PX - 4 }}>
                   {(g.end - g.start) >= 20 && basket.length > 0 && <>＋ {d.addHere}</>}
-                </button>
+                </motion.button>
               ))}
               {cards.map((c) => {
-                const start = ghost?.key === c.key ? ghost.start : c.start;
                 const status: DayStatus = c.item?.done_at ? "done" : c.item?.not_done_at ? "not_done" : null;
                 const arrived = c.start <= now; // above the red line
-                const bad = ghost?.key === c.key && !planMove(c, start);
-                const clash = !c.locked && cards.some((o) => o.key !== c.key && o.activity.fixed && start < o.start + o.minutes && o.start < start + c.minutes);
-                const canRemove = !arrived && !!c.item && !c.activity.fixed;
-                const stop = (e: React.PointerEvent) => e.stopPropagation();
+                const previewStart = preview?.plan?.get(c.key);
+                const clash = !c.locked && cards.some((o) => o.key !== c.key && o.activity.fixed && c.start < o.start + o.minutes && o.start < c.start + c.minutes);
                 return (
-                  <div key={c.key} onPointerDown={(e) => onDown(e, c)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-                    className={`absolute inset-x-0 flex select-none items-center gap-2 overflow-hidden rounded-xl border-2 px-2.5 text-white shadow-sm ${c.locked || arrived ? "" : "touch-none"} ${ghost?.key === c.key ? "z-20 scale-[1.02] shadow-xl" : ""}`}
-                    style={{ top: y(start) + 2, height: c.minutes * PX - 4, background: status ? `${c.color}80` : c.color, borderColor: bad || clash ? "#C8321E" : status ? "transparent" : "rgba(255,255,255,.5)", transition: ghost?.key === c.key ? "none" : "top .15s", zIndex: clash ? 10 : undefined }}>
-                    <div className={`flex min-w-0 flex-1 items-center gap-2 ${status ? "opacity-70" : ""}`}>
-                      <span className="text-xl">{c.activity.icon}</span>
-                      <div className="min-w-0 flex-1 leading-tight">
-                        <div className="truncate font-display text-sm font-extrabold" dir="auto">{c.name}{c.locked && <span className="ms-1 text-xs opacity-80">🔒</span>}</div>
-                        <div className="truncate text-[11px] opacity-90">{clash ? <span className="font-bold text-white"><span className="rounded bg-red px-1">{d.needsMove}</span></span> : <>{fmt12(c.start, lang)} · {c.minutes} {d.minutes}{c.activity.stars > 0 && <> · {"⭐".repeat(Math.min(c.activity.stars, 3))}</>}</>}</div>
-                      </div>
-                    </div>
-                    {status === "done" ? <button onPointerDown={stop} onClick={() => judge(c, null)} aria-label={d.doneStar} className={`grid h-7 w-7 shrink-0 place-items-center rounded-full bg-green text-base font-extrabold text-white ${burst === c.key ? "pop" : ""}`}>✓</button>
-                      : status === "not_done" ? <button onPointerDown={stop} onClick={() => judge(c, null)} aria-label={d.notDone} className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-red text-base font-extrabold text-white">✕</button>
-                      : arrived ? <span className="flex shrink-0 gap-1">
-                          <button onPointerDown={stop} onClick={() => judge(c, "done")} aria-label={d.doneStar} className="grid h-7 w-7 place-items-center rounded-full bg-white text-base font-extrabold text-green">✓</button>
-                          <button onPointerDown={stop} onClick={() => judge(c, "not_done")} aria-label={d.notDone} className="grid h-7 w-7 place-items-center rounded-full bg-white/30 text-base font-extrabold text-white">✕</button>
-                        </span>
-                      : canRemove && <button onPointerDown={stop} onClick={() => remove(c)} aria-label={d.remove} className="rounded-full bg-white/25 px-2 py-0.5 text-sm font-bold">✕</button>}
-                  </div>
+                  <Block key={c.key} card={c} top={y(c.start) + 2} previewTop={previewStart != null ? y(previewStart) + 2 : undefined} settle={settle}
+                    movable={!immovable(c)} bad={preview?.key === c.key && !preview.plan} clash={clash} status={status} arrived={arrived}
+                    canRemove={!arrived && !!c.item && !c.activity.fixed} burst={burst === c.key} lang={lang} d={d}
+                    onDrag={(info) => onDrag(c, info)} onDragEnd={() => onDragEnd(c)} onJudge={(st) => judge(c, st)} onRemove={() => remove(c)} />
                 );
               })}
               {now >= win.start && now <= win.end && (
-                <div className="pointer-events-none absolute -inset-x-2 z-30 flex items-center" style={{ top: y(now) }}>
-                  <span className="h-3 w-3 rounded-full bg-red" /><span className="h-0.5 flex-1 bg-red" /><span className="rounded-full bg-red px-2 text-[10px] font-bold text-white">{fmt12(now, lang)}</span>
-                </div>
+                <motion.div layout transition={SPRING.gentle} className="pointer-events-none absolute -inset-x-2 z-30 flex items-center" style={{ top: y(now) }}>
+                  <motion.span animate={{ scale: [1, 1.35, 1], opacity: [1, 0.7, 1] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }} className="h-3 w-3 rounded-full bg-red" />
+                  <span className="h-0.5 flex-1 bg-red" /><span className="rounded-full bg-red px-2 text-[10px] font-bold text-white">{fmt12(now, lang)}</span>
+                </motion.div>
               )}
             </div>
           </div>
@@ -249,7 +275,7 @@ export default function DayPage() {
       )}
       {stats && (
         <div className="mx-auto mt-3 grid max-w-4xl gap-3 sm:grid-cols-2">
-          <section className="rounded-3xl bg-white p-4 shadow-sm">
+          <motion.section {...enter(1)} className="rounded-3xl bg-white p-4 shadow-sm">
             <h2 className="font-display font-extrabold">📊 {d.todayNumbers}</h2>
             <div className="mt-3 grid grid-cols-4 gap-2 text-center">
               {([["⏳", hrs(stats.free), d.freeTime, "text-ink"], ["✅", stats.done, d.doneCount, "text-green"], ["❌", stats.notDone, d.notDoneCount, "text-red"], ["⏭️", stats.remaining, d.remainingCount, "text-accent"]] as const).map(([icon, n, label, cls]) => (
@@ -260,8 +286,8 @@ export default function DayPage() {
                 </div>
               ))}
             </div>
-          </section>
-          <section className="rounded-3xl bg-white p-4 shadow-sm">
+          </motion.section>
+          <motion.section {...enter(2)} className="rounded-3xl bg-white p-4 shadow-sm">
             <h2 className="font-display font-extrabold">🎨 {d.byCategory}</h2>
             {stats.byCat.length === 0 ? <p className="mt-3 text-sm text-ink-2">{d.nothingPlanned}</p> : (
               <ul className="mt-3 space-y-2">
@@ -281,7 +307,7 @@ export default function DayPage() {
                 })}
               </ul>
             )}
-          </section>
+          </motion.section>
         </div>
       )}
       {total != null && <p className="mx-auto mt-3 max-w-4xl text-center text-sm text-ink-2">⭐ {total} · {d.dayStars}</p>}

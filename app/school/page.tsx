@@ -26,17 +26,19 @@ function Book({ subjectKey, small = false, className = "", ...rest }: { subjectK
 }
 
 /** The bag arrives closed, opens its flap, takes the books one by one, then zips up. */
-function Bag({ open, zipped, count, total, openingRef, children }: { open: boolean; zipped: boolean; count: number; total: number; openingRef: React.RefObject<HTMLDivElement | null>; children: React.ReactNode }) {
+function Bag({ open, zipped, count, total, openingRef, onTapBag, children }: { open: boolean; zipped: boolean; count: number; total: number; openingRef: React.RefObject<HTMLDivElement | null>; onTapBag: () => void; children: React.ReactNode }) {
   return (
     <motion.div initial={{ y: 120, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 120, opacity: 0 }} transition={SPRING.gentle} className="relative mx-auto mt-3 h-[190px] w-[240px]" style={{ perspective: 600 }}>
-      <motion.div key={`squash-${count}`} initial={{ scaleY: 0.92, scaleX: 1.04 }} animate={{ scaleY: 1, scaleX: 1 }} transition={SPRING.bouncy} className="absolute inset-0 origin-bottom">
+      <motion.div key={`squash-${count}`} initial={{ scaleY: 0.92, scaleX: 1.04 }} animate={{ scaleY: 1, scaleX: 1 }} transition={SPRING.bouncy} className="absolute inset-0 origin-bottom" onClick={onTapBag}>
         <div className="absolute left-1/2 top-[-4px] h-10 w-24 -translate-x-1/2 rounded-t-[36px] border-[9px] border-b-0 border-[#17305F]" />
         <div className="absolute inset-x-0 bottom-0 top-8 rounded-[26px] bg-[#3B7DDD] shadow-[inset_0_-16px_0_rgba(0,0,0,.12),0_14px_28px_-16px_rgba(0,0,0,.5)]" />
-        <div className="absolute inset-x-9 bottom-5 h-14 rounded-2xl bg-[#2457C5] shadow-[inset_0_3px_0_rgba(255,255,255,.15)]" />
-        <div ref={openingRef} className="absolute inset-x-6 top-8 flex h-12 items-end justify-center gap-1 overflow-hidden rounded-b-2xl bg-[#17305F] px-2 pb-1">{children}</div>
-        <motion.div initial={false} animate={{ scaleX: zipped ? 1 : 0 }} transition={{ duration: 0.4, ease: [0.645, 0.045, 0.355, 1] }} className="absolute inset-x-6 top-7 h-1 origin-left" style={{ background: "repeating-linear-gradient(90deg,#FFD84D 0 6px,transparent 6px 9px)" }} />
-        <motion.div initial={false} animate={{ rotateX: open && !zipped ? -112 : 0 }} transition={SPRING.gentle} className="absolute inset-x-2 top-0 h-16 origin-top rounded-[22px] bg-[#4E8EF0] shadow-[0_8px_12px_-8px_rgba(0,0,0,.45)]">
-          <div className="absolute bottom-2 left-1/2 h-2 w-6 -translate-x-1/2 rounded bg-[#FFD84D]" />
+        <div className="absolute inset-x-9 bottom-5 h-12 rounded-2xl bg-[#2457C5] shadow-[inset_0_3px_0_rgba(255,255,255,.15)]" />
+        {/* the mouth: a dark pocket the books drop into; the flap covers it completely when closed */}
+        <div ref={openingRef} onClick={(e) => e.stopPropagation()} className="absolute inset-x-5 top-9 flex h-14 items-end justify-center gap-1 overflow-hidden rounded-2xl bg-[#17305F] px-2 pb-1.5 shadow-[inset_0_6px_10px_rgba(0,0,0,.45)]">{children}</div>
+        <motion.div initial={false} animate={{ scaleX: zipped ? 1 : 0 }} transition={{ duration: 0.4, ease: [0.645, 0.045, 0.355, 1] }} className="absolute inset-x-6 top-[74px] z-10 h-1 origin-left" style={{ background: "repeating-linear-gradient(90deg,#FFD84D 0 6px,transparent 6px 9px)" }} />
+        <motion.div initial={false} animate={{ rotateX: open ? -78 : 0 }} transition={SPRING.gentle} className="absolute inset-x-2 top-0 z-20 h-[84px] origin-top rounded-[22px] shadow-[0_8px_12px_-8px_rgba(0,0,0,.45)]"
+          style={{ background: "linear-gradient(#5A97F2,#4E8EF0 70%,#3E7BE0)", backfaceVisibility: "visible" }}>
+          <div className="absolute bottom-3 left-1/2 h-2 w-7 -translate-x-1/2 rounded bg-[#FFD84D]" />
         </motion.div>
       </motion.div>
       <div className="absolute -bottom-6 inset-x-0 text-center font-display text-sm font-extrabold text-[#17305F]">🎒 {count}/{total}</div>
@@ -61,6 +63,7 @@ export default function KidPage() {
   const [openSlot, setOpenSlot] = useState<number | null>(null);
   const [celebrate, setCelebrate] = useState(false);
   const [bagOpen, setBagOpen] = useState(false);
+  const [reopen, setReopen] = useState(false); // tap a zipped bag to open it again and take books out
 
   useEffect(() => {
     if (!target) return;
@@ -92,7 +95,7 @@ export default function KidPage() {
   const allPacked = allDone && packedCount === slots.length;
   // the bag comes in closed, then opens after a beat
   useEffect(() => { if (!allDone) { setBagOpen(false); return; } const id = setTimeout(() => setBagOpen(true), 650); return () => clearTimeout(id); }, [allDone]);
-  useEffect(() => { if (allPacked) { const id = setTimeout(() => setCelebrate(true), 700); return () => clearTimeout(id); } }, [allPacked]);
+  useEffect(() => { if (allPacked) { setReopen(false); const id = setTimeout(() => setCelebrate(true), 700); return () => clearTimeout(id); } }, [allPacked]);
 
   const openingRef = useRef<HTMLDivElement>(null);
   async function pack(slot: number, packed: boolean) {
@@ -192,9 +195,9 @@ export default function KidPage() {
                 </div>
                 <AnimatePresence>
                   {allDone && (
-                    <Bag key="bag" open={bagOpen} zipped={allPacked} count={packedCount} total={slots.length} openingRef={openingRef}>
+                    <Bag key="bag" open={bagOpen && (!allPacked || reopen)} zipped={allPacked && !reopen} count={packedCount} total={slots.length} openingRef={openingRef} onTapBag={() => allPacked && setReopen((r) => !r)}>
                       {packed.map(({ period }) => (
-                        <Book key={period.slot} subjectKey={period.subject_key} layoutId={lid(period.slot)} layout small whileTap={{ y: -6 }} onTap={() => !allPacked && pack(period.slot, false)} className="cursor-pointer" />
+                        <Book key={period.slot} subjectKey={period.subject_key} layoutId={lid(period.slot)} layout small whileTap={{ y: -8 }} onTap={() => pack(period.slot, false)} className="cursor-pointer" />
                       ))}
                     </Bag>
                   )}
@@ -206,7 +209,7 @@ export default function KidPage() {
 
           <AnimatePresence>
             {open && week && (
-              <LessonSheet key="sheet" layoutId={lid(open.period.slot)} period={open.period} entry={open.entry} done={!!st(open.period.slot)?.done_at} lang={lang} d={d}
+              <LessonSheet key="sheet" period={open.period} entry={open.entry} done={!!st(open.period.slot)?.done_at} lang={lang} d={d}
                 onClose={() => setOpenSlot(null)} onDone={(v, f) => mark(open.period.slot, v, f)} />
             )}
           </AnimatePresence>
