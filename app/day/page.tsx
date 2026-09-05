@@ -312,9 +312,11 @@ export default function DayPage() {
       )}
       {total != null && <p className="mx-auto mt-3 max-w-4xl text-center text-sm text-ink-2">⭐ {total} · {d.dayStars}</p>}
 
+      <AnimatePresence>
       {gap && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center" onClick={() => { setGap(null); setPick(null); }}>
-          <div onClick={(e) => e.stopPropagation()} className="rise max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
+        <motion.div key="basket" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }} className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center" onClick={() => { setGap(null); setPick(null); }}>
+          <motion.div initial={{ y: 48, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0, transition: { duration: 0.2, ease: [0.645, 0.045, 0.355, 1] } }} transition={SPRING.gentle}
+            onClick={(e) => e.stopPropagation()} className="max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-xl font-extrabold">{pick ? `${pick.icon} ${d.pickLength}` : `🧺 ${d.addToDay}`}</h2>
               <span className="rounded-full bg-paper px-3 py-1 text-sm font-semibold text-ink-2">{fmt12(gap.start, lang)} → {fmt12(gap.end, lang)}</span>
@@ -353,9 +355,10 @@ export default function DayPage() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </main>
   );
 }

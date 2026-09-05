@@ -4,11 +4,20 @@ import Link from "next/link";
 import { useLang } from "@/lib/lang";
 import { t } from "@/lib/i18n";
 import { KidTop } from "@/components/KidTop";
+import { motion, animate, useMotionValue, useTransform } from "motion/react";
+import { SPRING, enter } from "@/lib/motion";
 import { loadDayStars } from "@/lib/day";
 import { loadAllPeriodCounts, loadAllProgress, loadSettings, type ProgressWithWeek } from "@/lib/data";
 import { addDays, todayISO, weekday, formatDate } from "@/lib/schedule";
 
 // Always encouraging: counts stars, full days, full weeks and streaks. Never scores, never "behind", never what comes later.
+function CountUp({ value }: { value: number }) {
+  const mv = useMotionValue(0);
+  const text = useTransform(mv, (v) => Math.round(v).toString());
+  useEffect(() => { const c = animate(mv, value, { duration: 0.9, ease: [0.165, 0.84, 0.44, 1] }); return () => c.stop(); }, [value, mv]);
+  return <motion.span className="font-display text-7xl font-extrabold text-[#F27D26]">{text}</motion.span>;
+}
+
 export default function StarsPage() {
   const [lang] = useLang("kid");
   const d = t(lang);
@@ -65,34 +74,34 @@ export default function StarsPage() {
 
       {!stats ? <p className="mt-10 text-center text-ink-2">…</p> : (
         <div className="mx-auto max-w-6xl">
-          <div className="rise mt-4 rounded-3xl bg-white p-6 text-center shadow-sm">
-            <div className="pop font-display text-7xl font-extrabold text-[#F27D26]">{stats.stars + dayStars}</div>
+          <motion.div {...enter(0)} className="mt-4 rounded-3xl bg-white p-6 text-center shadow-sm">
+            <div><CountUp value={stats.stars + dayStars} /></div>
             <div className="text-lg font-semibold text-ink-2">{d.totalStars}</div>
             <div className="mt-1 text-sm text-ink-2">📚 {stats.stars} {d.schoolStars} · 🗓️ {dayStars} {d.dayStars}</div>
             <p className="mt-2 text-ink-2">{stats.stars === 0 ? d.noStarsYet : d.keepGoing}</p>
-          </div>
+          </motion.div>
           <div className="mt-3 grid grid-cols-3 gap-3">
             {[["🏆", stats.fullDays, d.fullDays], ["🏅", stats.fullWeeks, d.fullWeeks], ["🔥", stats.streak, d.streak]].map(([icon, n, label], i) => (
-              <div key={i} className="rise rounded-3xl bg-white p-4 text-center shadow-sm" style={{ animationDelay: `${i * 80}ms` }}>
+              <motion.div key={i} {...enter(i + 1)} className="rounded-3xl bg-white p-4 text-center shadow-sm">
                 <div className="text-4xl">{icon}</div>
                 <div className="font-display text-3xl font-extrabold">{n}</div>
                 <div className="text-sm font-semibold text-ink-2">{label}</div>
-              </div>
+              </motion.div>
             ))}
           </div>
           {stats.weeks.length > 0 && (
-            <div className="mt-3 rounded-3xl bg-white p-5 shadow-sm">
+            <motion.div {...enter(4)} className="mt-3 rounded-3xl bg-white p-5 shadow-sm">
               <div className="font-display text-lg font-extrabold">{d.starsPerWeek}</div>
               <div className="mt-3 flex h-40 items-end gap-3">
-                {stats.weeks.map(([start, w]) => (
+                {stats.weeks.map(([start, w], i) => (
                   <div key={start} className="flex flex-1 flex-col items-center gap-1">
                     <div className="font-display font-extrabold">{w.stars}</div>
-                    <div className="w-full rounded-t-xl bg-[#F27D26]" style={{ height: `${Math.max(6, (w.stars / max) * 100)}%` }} />
+                    <motion.div initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ ...SPRING.gentle, delay: 0.3 + i * 0.06 }} className="w-full origin-bottom rounded-t-xl bg-[#F27D26]" style={{ height: `${Math.max(6, (w.stars / max) * 100)}%` }} />
                     <div className="text-[11px] text-ink-2">{formatDate(start, lang)}</div>
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       )}
