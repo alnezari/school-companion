@@ -1,16 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLang } from "@/lib/lang";
 import { t } from "@/lib/i18n";
 import { loadSettings } from "@/lib/data";
-import { LangToggle } from "@/components/LangToggle";
-import { ParentGate } from "@/components/ParentGate";
+import { ParentGate, UNLOCK_KEY } from "@/components/ParentGate";
 import { kidBtn } from "@/components/KidTop";
 
 // The child's launcher: two big "apps" like a store. More can be added here later.
 export default function Launcher() {
-  const [lang, setLang] = useLang("kid");
+  const router = useRouter();
+  const [lang] = useLang("kid");
   const d = t(lang);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [gate, setGate] = useState(false);
@@ -25,8 +26,7 @@ export default function Launcher() {
       <header className="mx-auto flex max-w-5xl items-start justify-between gap-3">
         <h1 className="font-display text-3xl font-extrabold sm:text-4xl">{d.hi} {name} 👋</h1>
         <div className="flex items-center gap-2">
-          <LangToggle lang={lang} setLang={setLang} className="h-12" />
-          <button onClick={() => setGate(true)} className={`${kidBtn} text-base`}>🔒 {d.parents}</button>
+          <button onClick={() => { if (settings.parent_pin_enabled === "false") { try { sessionStorage.setItem(UNLOCK_KEY, "1"); } catch {} router.push("/parent"); } else setGate(true); }} className={`${kidBtn} text-base`}>🔒 {d.parents}</button>
         </div>
       </header>
       <div className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-8">

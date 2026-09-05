@@ -53,6 +53,8 @@ const dict = {
     notifDisable: "Turn off on this device", notifDenied: "Notifications are blocked in your phone's settings for this app.",
     notifUnsupported: "This browser can't receive notifications.", notifIosHint: "On iPhone or iPad: tap Share, then \"Add to Home Screen\", open Tomorrow First from there, then come back here.",
     notifBagPacked: "🎒 Taym packed his bag", notifNoPlan: "📄 Remind me if I forget to upload the plan", notifError: "Something went wrong turning that on.",
+    security: "Security", pinEnabled: "Ask for the parent PIN", thisDeviceOnly: "This device only", timing: "Timing", inUse: "in use",
+    todayNumbers: "Today in numbers", freeTime: "free", doneCount: "done", notDoneCount: "not done", remainingCount: "remaining", byCategory: "How the day was spent", hoursShort: "h", blocksShort: "blocks",
     subject: "Subject", ttUploaded: "Timetable saved", periodsRead: "periods read", ttBody: "Pick the picture or PDF of the grid the school sent. Tap any period below to fix it by hand.", ttReading: "Reading the timetable with Claude…",
   },
   ar: {
@@ -100,6 +102,8 @@ const dict = {
     notifDisable: "إيقاف على هذا الجهاز", notifDenied: "الإشعارات محجوبة لهذا التطبيق في إعدادات هاتفك.",
     notifUnsupported: "هذا المتصفح لا يدعم الإشعارات.", notifIosHint: "على الآيفون أو الآيباد: اضغط مشاركة ثم \"إضافة إلى الشاشة الرئيسية\"، ثم افتح Tomorrow First من هناك وعُد إلى هنا.",
     notifBagPacked: "🎒 تيم جهّز حقيبته", notifNoPlan: "📄 ذكّرني إن نسيت رفع الخطة", notifError: "حدث خطأ أثناء التفعيل.",
+    security: "الأمان", pinEnabled: "طلب رمز الوالدين", thisDeviceOnly: "لهذا الجهاز فقط", timing: "الأوقات", inUse: "مستخدمة",
+    todayNumbers: "يومي بالأرقام", freeTime: "فراغ", doneCount: "تم", notDoneCount: "لم يتم", remainingCount: "متبقٍ", byCategory: "كيف مضى اليوم", hoursShort: "س", blocksShort: "كتل",
     subject: "المادة", ttUploaded: "تم حفظ الجدول", periodsRead: "حصة قُرئت", ttBody: "اختر صورة أو PDF الجدول الذي أرسلته المدرسة. اضغط أي حصة أدناه لتصحيحها يدويًا.", ttReading: "جارٍ قراءة الجدول بواسطة Claude…",
   },
 };

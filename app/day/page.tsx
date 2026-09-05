@@ -6,7 +6,7 @@ import { todayISO, formatDate, fmt12, TZ } from "@/lib/schedule";
 import { loadSettings } from "@/lib/data";
 import { KidTop } from "@/components/KidTop";
 import {
-  addDayItem, catColor, configFrom, dayWindow, fixedFor, loadActivities, loadCategories, loadDayItems, loadDayStars, loadSkips, moveDayItem, removeDayItem,
+  addDayItem, catColor, catName, configFrom, dayWindow, fixedFor, loadActivities, loadCategories, loadDayItems, loadDayStars, loadSkips, moveDayItem, removeDayItem,
   setStatus, showsOn, subscribeDayItems, toMin, toTime, type Activity, type Category, type DayConfig, type DayItem, type DayStatus,
 } from "@/lib/day";
 
@@ -88,11 +88,34 @@ export default function DayPage() {
   const earliestAddable = win ? Math.max(win.start, Math.ceil(now / SNAP) * SNAP) : 0;
   const drag = useRef<{ key: string; y0: number; start0: number } | null>(null);
   const [ghost, setGhost] = useState<{ key: string; start: number } | null>(null);
-  const fits = useCallback((key: string, start: number, minutes: number) =>
-    !!win && start >= earliestAddable && start + minutes <= win.end && !cards.some((o) => o.key !== key && start < o.start + o.minutes && o.start < start + minutes),
-  [win, cards, earliestAddable]);
+  const immovable = useCallback((o: Card) => o.locked || o.start <= now, [now]);
+  /** Where everything ends up if card c is dropped at S. Dropping onto other cards pushes them out of the way, keeping their order. */
+  const planMove = useCallback((c: Card, S: number): { card: Card; start: number }[] | null => {
+    if (!win) return null;
+    const L = c.minutes, P = c.start;
+    const others = cards.filter((o) => o.key !== c.key);
+    const onTop = others.filter((o) => S < o.start + o.minutes && o.start < S + L);
+    let plan: { card: Card; start: number }[];
+    if (onTop.length === 0) plan = [{ card: c, start: S }];
+    else if (S > P) {
+      const chain = others.filter((o) => (o.start >= P + L && o.start < S + L) || onTop.includes(o));
+      if (chain.some(immovable)) return null;
+      plan = [...chain.map((o) => ({ card: o, start: o.start - L })), { card: c, start: Math.max(...chain.map((o) => o.start + o.minutes)) - L }];
+    } else {
+      const chain = others.filter((o) => (o.start >= S && o.start < P) || onTop.includes(o));
+      if (chain.some(immovable)) return null;
+      plan = [...chain.map((o) => ({ card: o, start: o.start + L })), { card: c, start: Math.min(...chain.map((o) => o.start)) }];
+    }
+    const moved = new Map(plan.map((p) => [p.card.key, p.start]));
+    const all = cards.map((o) => ({ key: o.key, start: moved.get(o.key) ?? o.start, minutes: o.minutes }));
+    for (const a of all) {
+      if (moved.has(a.key) && (a.start < earliestAddable || a.start + a.minutes > win.end)) return null;
+      for (const b of all) if (a.key !== b.key && a.start < b.start + b.minutes && b.start < a.start + a.minutes) return null;
+    }
+    return plan;
+  }, [win, cards, earliestAddable, immovable]);
   function onDown(e: React.PointerEvent, c: Card) {
-    if (c.locked || c.start <= now) return; // its time has come: it stays where it is
+    if (immovable(c)) return; // its time has come: it stays where it is
     drag.current = { key: c.key, y0: e.clientY, start0: c.start };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -104,14 +127,19 @@ export default function DayPage() {
     const g = ghost; drag.current = null; setGhost(null);
     if (!g || !date) return;
     const c = cards.find((x) => x.key === g.key);
-    if (!c || g.start === c.start || !fits(c.key, g.start, c.minutes)) return;
-    if (c.item) {
-      setItems((it) => it.map((i) => (i.id === c.item!.id ? { ...i, start_time: toTime(g.start) } : i)));
-      await moveDayItem(c.item.id, g.start);
-    } else {
-      const row = await addDayItem(date, c.activity.id, g.start, c.minutes); // a moved fixed activity remembers its new time for today
-      if (row) setItems((it) => [...it, row]);
-    }
+    if (!c || g.start === c.start) return;
+    const plan = planMove(c, g.start);
+    if (!plan) return;
+    const place = async (card: Card, start: number): Promise<DayItem | null> => {
+      if (card.item) { await moveDayItem(card.item.id, start); return { ...card.item, start_time: toTime(start) }; }
+      return addDayItem(date, card.activity.id, start, card.minutes); // a moved fixed activity remembers its new time for today
+    };
+    const rows = await Promise.all(plan.map((p) => place(p.card, p.start)));
+    setItems((it) => {
+      let next = it;
+      for (const row of rows) if (row) next = next.some((i) => i.id === row.id) ? next.map((i) => (i.id === row.id ? row : i)) : [...next, row];
+      return next;
+    });
   }
 
   // ----- gaps: tap a free stretch to add from the basket. Never into time that has already gone. -----
@@ -139,6 +167,17 @@ export default function DayPage() {
     await setStatus(item.id, status);
   }
   async function remove(c: Card) { if (!c.item) return; setItems((it) => it.filter((i) => i.id !== c.item!.id)); await removeDayItem(c.item.id); }
+
+  const stats = useMemo(() => {
+    if (!win) return null;
+    const occupied = cards.reduce((n, c) => n + c.minutes, 0);
+    let done = 0, notDone = 0, remaining = 0;
+    for (const c of cards) { if (c.item?.done_at) done++; else if (c.item?.not_done_at) notDone++; else remaining++; }
+    const byCat = new Map<string, { minutes: number; count: number }>();
+    for (const c of cards) { const e = byCat.get(c.activity.category) ?? { minutes: 0, count: 0 }; e.minutes += c.minutes; e.count++; byCat.set(c.activity.category, e); }
+    return { free: Math.max(0, win.end - win.start - occupied), done, notDone, remaining, byCat: [...byCat.entries()].sort((a, b) => b[1].minutes - a[1].minutes) };
+  }, [cards, win]);
+  const hrs = (m: number) => `${m % 60 === 0 ? m / 60 : (m / 60).toFixed(1)} ${d.hoursShort}`;
 
   const H = win ? (win.end - win.start) * PX : 0;
   const y = (m: number) => (win ? (m - win.start) * PX : 0);
@@ -170,18 +209,20 @@ export default function DayPage() {
                 const start = ghost?.key === c.key ? ghost.start : c.start;
                 const status: DayStatus = c.item?.done_at ? "done" : c.item?.not_done_at ? "not_done" : null;
                 const arrived = c.start <= now; // above the red line
-                const bad = ghost?.key === c.key && !fits(c.key, start, c.minutes);
+                const bad = ghost?.key === c.key && !planMove(c, start);
                 const clash = !c.locked && cards.some((o) => o.key !== c.key && o.activity.fixed && start < o.start + o.minutes && o.start < start + c.minutes);
                 const canRemove = !arrived && !!c.item && !c.activity.fixed;
                 const stop = (e: React.PointerEvent) => e.stopPropagation();
                 return (
                   <div key={c.key} onPointerDown={(e) => onDown(e, c)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-                    className={`absolute inset-x-0 flex select-none items-center gap-2 overflow-hidden rounded-xl border-2 px-2.5 text-white shadow-sm ${c.locked || arrived ? "" : "touch-none"} ${ghost?.key === c.key ? "z-20 scale-[1.02] shadow-xl" : ""} ${status ? "opacity-50" : ""}`}
-                    style={{ top: y(start) + 2, height: c.minutes * PX - 4, background: c.color, borderColor: bad || clash ? "#C8321E" : "rgba(255,255,255,.5)", transition: ghost?.key === c.key ? "none" : "top .15s", zIndex: clash ? 10 : undefined }}>
-                    <span className="text-xl">{c.activity.icon}</span>
-                    <div className="min-w-0 flex-1 leading-tight">
-                      <div className="truncate font-display text-sm font-extrabold" dir="auto">{c.name}{c.locked && <span className="ms-1 text-xs opacity-80">🔒</span>}</div>
-                      <div className="truncate text-[11px] opacity-90">{clash ? <span className="font-bold text-white"><span className="rounded bg-red px-1">{d.needsMove}</span></span> : <>{fmt12(c.start, lang)} · {c.minutes} {d.minutes}{c.activity.stars > 0 && <> · {"⭐".repeat(Math.min(c.activity.stars, 3))}</>}</>}</div>
+                    className={`absolute inset-x-0 flex select-none items-center gap-2 overflow-hidden rounded-xl border-2 px-2.5 text-white shadow-sm ${c.locked || arrived ? "" : "touch-none"} ${ghost?.key === c.key ? "z-20 scale-[1.02] shadow-xl" : ""}`}
+                    style={{ top: y(start) + 2, height: c.minutes * PX - 4, background: status ? `${c.color}80` : c.color, borderColor: bad || clash ? "#C8321E" : status ? "transparent" : "rgba(255,255,255,.5)", transition: ghost?.key === c.key ? "none" : "top .15s", zIndex: clash ? 10 : undefined }}>
+                    <div className={`flex min-w-0 flex-1 items-center gap-2 ${status ? "opacity-70" : ""}`}>
+                      <span className="text-xl">{c.activity.icon}</span>
+                      <div className="min-w-0 flex-1 leading-tight">
+                        <div className="truncate font-display text-sm font-extrabold" dir="auto">{c.name}{c.locked && <span className="ms-1 text-xs opacity-80">🔒</span>}</div>
+                        <div className="truncate text-[11px] opacity-90">{clash ? <span className="font-bold text-white"><span className="rounded bg-red px-1">{d.needsMove}</span></span> : <>{fmt12(c.start, lang)} · {c.minutes} {d.minutes}{c.activity.stars > 0 && <> · {"⭐".repeat(Math.min(c.activity.stars, 3))}</>}</>}</div>
+                      </div>
                     </div>
                     {status === "done" ? <button onPointerDown={stop} onClick={() => judge(c, null)} aria-label={d.doneStar} className={`grid h-7 w-7 shrink-0 place-items-center rounded-full bg-green text-base font-extrabold text-white ${burst === c.key ? "pop" : ""}`}>✓</button>
                       : status === "not_done" ? <button onPointerDown={stop} onClick={() => judge(c, null)} aria-label={d.notDone} className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-red text-base font-extrabold text-white">✕</button>
@@ -202,6 +243,40 @@ export default function DayPage() {
           </div>
         </div>
       )}
+      {stats && (
+        <div className="mx-auto mt-3 grid max-w-4xl gap-3 sm:grid-cols-2">
+          <section className="rounded-3xl bg-white p-4 shadow-sm">
+            <h2 className="font-display font-extrabold">📊 {d.todayNumbers}</h2>
+            <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+              {([["⏳", hrs(stats.free), d.freeTime, "text-ink"], ["✅", stats.done, d.doneCount, "text-green"], ["❌", stats.notDone, d.notDoneCount, "text-red"], ["⏭️", stats.remaining, d.remainingCount, "text-accent"]] as const).map(([icon, n, label, cls]) => (
+                <div key={label} className="rounded-2xl bg-paper px-1 py-3">
+                  <div className="text-lg">{icon}</div>
+                  <div className={`font-display text-xl font-extrabold ${cls}`}>{n}</div>
+                  <div className="text-[11px] font-semibold text-ink-2">{label}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="rounded-3xl bg-white p-4 shadow-sm">
+            <h2 className="font-display font-extrabold">🎨 {d.byCategory}</h2>
+            {stats.byCat.length === 0 ? <p className="mt-3 text-sm text-ink-2">{d.nothingPlanned}</p> : (
+              <ul className="mt-3 space-y-2">
+                {stats.byCat.map(([key, v]) => {
+                  const max = stats.byCat[0][1].minutes;
+                  return (
+                    <li key={key} className="flex items-center gap-2 text-sm">
+                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: catColor(cats, key) }} />
+                      <span className="w-20 shrink-0 truncate font-semibold" dir="auto">{catName(cats, key, lang)}</span>
+                      <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-paper"><span className="block h-full rounded-full" style={{ width: `${(v.minutes / max) * 100}%`, background: catColor(cats, key) }} /></span>
+                      <span className="w-24 shrink-0 text-end text-xs text-ink-2">{hrs(v.minutes)} · {v.count} {d.blocksShort}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </div>
+      )}
       {total != null && <p className="mx-auto mt-3 max-w-4xl text-center text-sm text-ink-2">⭐ {total} · {d.dayStars}</p>}
 
       {gap && (
@@ -212,23 +287,27 @@ export default function DayPage() {
               <span className="rounded-full bg-paper px-3 py-1 text-sm font-semibold text-ink-2">{fmt12(gap.start, lang)} → {fmt12(gap.end, lang)}</span>
             </div>
             {!pick ? (
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {basket.map((a) => {
-                  const color = catColor(cats, a.category);
-                  const left = a.max_minutes_per_day != null ? Math.max(0, a.max_minutes_per_day - usedBy(a)) : null;
-                  const room = Math.min(gap.end - gap.start, left ?? Infinity);
-                  const ok = lengths(a).some((m) => m <= room);
-                  return (
-                    <button key={a.id} disabled={!ok} onClick={() => setPick(a)} className="flex items-center gap-3 rounded-2xl border-2 p-3 text-start disabled:opacity-40" style={{ borderColor: color }}>
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-2xl text-white" style={{ background: color }}>{a.icon}</span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-display font-extrabold" dir="auto">{nm(a)}</span>
-                        <span className="block text-xs text-ink-2">{a.stars > 0 && "⭐".repeat(Math.min(a.stars, 3))}{left != null && <> {left} {d.minutes} {d.leftToday}</>}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              cats.filter((cat) => basket.some((a) => a.category === cat.key)).map((cat) => (
+                <div key={cat.key} className="mt-4">
+                  <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: cat.color }} />{catName(cats, cat.key, lang)}</div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {basket.filter((a) => a.category === cat.key).map((a) => {
+                      const left = a.max_minutes_per_day != null ? Math.max(0, a.max_minutes_per_day - usedBy(a)) : null;
+                      const room = Math.min(gap.end - gap.start, left ?? Infinity);
+                      const ok = lengths(a).some((m) => m <= room);
+                      return (
+                        <button key={a.id} disabled={!ok} onClick={() => setPick(a)} className="flex items-center gap-3 rounded-2xl border-2 p-3 text-start disabled:opacity-40" style={{ borderColor: cat.color }}>
+                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-2xl text-white" style={{ background: cat.color }}>{a.icon}</span>
+                          <span className="min-w-0">
+                            <span className="block truncate font-display font-extrabold" dir="auto">{nm(a)}</span>
+                            <span className="block text-xs text-ink-2">{a.stars > 0 && "⭐".repeat(Math.min(a.stars, 3))}{left != null && <> {left} {d.minutes} {d.leftToday}</>}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
             ) : (
               <div className="mt-4">
                 <button onClick={() => setPick(null)} className="text-sm font-semibold text-ink-2">← {d.basket}</button>

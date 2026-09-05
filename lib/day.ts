@@ -88,6 +88,10 @@ export async function saveCategory(c: Category) {
   const { error } = await supabase().from("categories").upsert(c);
   return !error;
 }
+export async function deleteCategory(key: string) {
+  const { error } = await supabase().from("categories").delete().eq("key", key);
+  return !error;
+}
 export async function setSkip(activityId: string, iso: string, skip: boolean) {
   const sb = supabase();
   if (skip) await sb.from("activity_skips").upsert({ activity_id: activityId, date: iso });
