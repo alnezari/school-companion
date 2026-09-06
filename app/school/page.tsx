@@ -9,9 +9,11 @@ import type { Period } from "@/lib/placement";
 import { SUBJECTS, subjectName, type SubjectKey } from "@/lib/subjects";
 import { SPRING, TAP, enter } from "@/lib/motion";
 import { KidTop } from "@/components/KidTop";
-import { LessonBody } from "@/components/LessonSheet";
+import { OpenBook, type Feeling } from "@/components/OpenBook";
 
 const lid = (slot: number) => `lesson-${slot}`;
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const CLOSE_MS = 650; // the open book folds back onto its cover before the cover travels anywhere
 
 /** A finished lesson is a little book: coloured cover, darker spine. Same element morphs from card to book to bag. */
 function Book({ subjectKey, small = false, className = "", ...rest }: { subjectKey: string; small?: boolean; className?: string } & React.ComponentProps<typeof motion.div>) {
@@ -22,6 +24,27 @@ function Book({ subjectKey, small = false, className = "", ...rest }: { subjectK
       <span className={small ? "" : "text-2xl"}>{meta.icon}</span>
       {!small && <span dir="auto" className="max-w-full truncate px-1 font-display text-[10px] font-extrabold leading-tight">{subjectName(subjectKey)}</span>}
     </motion.div>
+  );
+}
+
+/** A lesson to do is a book cover: number, icon, subject, a line about the lesson, a homework badge. Every cover the same size; it never moves. */
+function Cover({ period, entry, d, ...rest }: { period: Period; entry: Entry | null; d: ReturnType<typeof t> } & React.ComponentProps<typeof motion.button>) {
+  const meta = SUBJECTS[period.subject_key as SubjectKey];
+  const brief = entry ? ([entry.lesson, entry.topic].find(Boolean) as string) || entry.raw_text.slice(0, 80) : d.emptyCard;
+  return (
+    <motion.button {...rest} className="relative flex h-56 w-full select-none flex-col overflow-hidden text-start text-white shadow-md" style={{ background: meta.color, borderRadius: 18 }}>
+      <span className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(160deg, rgba(255,255,255,.16), rgba(0,0,0,.10))" }} />
+      <span className="absolute inset-y-0 start-0 w-2.5 bg-black/20" /><span className="absolute inset-y-0 start-2.5 w-px bg-white/30" />
+      <div className="relative flex flex-1 flex-col py-4 pe-4 ps-6">
+        <div className="flex items-start justify-between gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/25 font-display text-lg font-extrabold">{period.slot}</span>
+          {entry?.homework && <span className="rounded-full bg-red px-2.5 py-0.5 text-[11px] font-extrabold uppercase text-white shadow-sm">{d.homeworkTitle}</span>}
+        </div>
+        <span className="mt-2 text-4xl drop-shadow">{meta.icon}</span>
+        <div dir="auto" className="mt-1 line-clamp-2 font-display text-lg font-extrabold leading-tight">{subjectName(period.subject_key)}</div>
+        <p dir="auto" className="mt-auto line-clamp-2 pt-2 text-xs leading-snug text-white/85">{brief}</p>
+      </div>
+    </motion.button>
   );
 }
 
@@ -85,12 +108,16 @@ export default function KidPage() {
 
   const { slots, unmatched } = useMemo(() => buildDay(periods, entries, day), [periods, entries, day]);
   const st = (slot: number) => progress[pkey(day, slot)];
-  const doneCount = slots.filter((s) => st(s.period.slot)?.done_at).length;
+  const isDone = (slot: number) => !!st(slot)?.done_at, isPacked = (slot: number) => !!st(slot)?.packed_at;
+  const doneCount = slots.filter((s) => isDone(s.period.slot)).length;
   const hw = homeworkCount(slots, unmatched);
-  const prepare = slots.filter((s) => !s.entry).length;
   const allDone = slots.length > 0 && doneCount === slots.length;
-  const packedCount = slots.filter((s) => st(s.period.slot)?.packed_at).length;
+  const packedCount = slots.filter((s) => isPacked(s.period.slot)).length;
   const allPacked = allDone && packedCount === slots.length;
+  const finished = slots.filter((s) => isDone(s.period.slot) && !isPacked(s.period.slot));
+  const packed = slots.filter((s) => isPacked(s.period.slot));
+  const open = openSlot == null ? null : slots.find((s) => s.period.slot === openSlot) ?? null;
+
   // the bag comes in closed, then opens after a beat
   useEffect(() => { if (!allDone) { setBagOpen(false); return; } const id = setTimeout(() => setBagOpen(true), 1000); return () => clearTimeout(id); }, [allDone]);
   const prevPacked = useRef<number | null>(null);
@@ -104,34 +131,42 @@ export default function KidPage() {
   }, [allPacked, packedCount, slots.length, loading]);
   useEffect(() => { if (!celebrate) return; const id = setTimeout(() => setCelebrate(false), 4000); return () => clearTimeout(id); }, [celebrate]);
   const dragged = useRef(false); // a drag must never count as a tap
-
+  const packing = useRef(false);
   const mouthRef = useRef<HTMLDivElement>(null);
-  async function pack(slot: number, packed: boolean) {
+
+  /** One book in or out of the bag. The screen moves first; the row is saved behind it. */
+  function packOne(slot: number, packed: boolean) {
     if (!week) return;
-    const packed_at = await setPacked(week.id, day, slot, packed);
-    setProgressMap((m) => ({ ...m, [pkey(day, slot)]: { ...m[pkey(day, slot)], packed_at } }));
-    if (packed && target) {
-      const nowAllPacked = slots.every((s) => (s.period.slot === slot ? true : !!progress[pkey(day, s.period.slot)]?.packed_at));
-      if (nowAllPacked) fetch("/api/notify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "bag_packed", date: target }) }).catch(() => {});
-    }
+    const k = pkey(day, slot);
+    setProgressMap((m) => ({ ...m, [k]: { ...m[k], packed_at: packed ? new Date().toISOString() : null } }));
+    setPacked(week.id, day, slot, packed).then((packed_at) => setProgressMap((m) => ({ ...m, [k]: { ...m[k], packed_at } })));
   }
-  function dropped(slot: number, info: PanInfo) {
+  /** All the finished books go in together, one right after the other. */
+  async function packAll() {
+    if (packing.current || finished.length === 0) return;
+    packing.current = true;
+    for (const [i, s] of finished.entries()) { if (i) await wait(170); packOne(s.period.slot, true); }
+    packing.current = false;
+    if (target) fetch("/api/notify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "bag_packed", date: target }) }).catch(() => {});
+  }
+  function droppedGroup(info: PanInfo) {
     setTimeout(() => { dragged.current = false; }, 250);
     const r = mouthRef.current?.getBoundingClientRect();
-    if (r && info.point.x >= r.left - 16 && info.point.x <= r.right + 16 && info.point.y >= r.top - 40 && info.point.y <= r.bottom + 30) pack(slot, true);
+    if (r && info.point.x >= r.left - 24 && info.point.x <= r.right + 24 && info.point.y >= r.top - 48 && info.point.y <= r.bottom + 36) packAll();
   }
-  async function mark(slot: number, done: boolean, feeling?: "easy" | "ok" | "hard") {
+  async function mark(slot: number, done: boolean, feeling?: Feeling) {
     if (!week) return;
     const row = await setProgress(week.id, day, slot, done, feeling ?? null);
     setProgressMap((m) => ({ ...m, [pkey(day, slot)]: row }));
-    if (done) setTimeout(() => setOpenSlot(null), 900); // a beat to see the star, then the card folds into a book in front of him
+  }
+  /** A face was tapped: the book closes onto its cover, then the cover travels to Finished. Undo is the same trip back. */
+  async function finish(slot: number, done: boolean, feeling?: Feeling) {
+    setOpenSlot(null);
+    await wait(CLOSE_MS);
+    mark(slot, done, feeling);
   }
 
   const name = settings.child_name || "Taym";
-  const isDone = (slot: number) => !!st(slot)?.done_at, isPacked = (slot: number) => !!st(slot)?.packed_at;
-  const grid = slots.filter((s) => !isDone(s.period.slot) || s.period.slot === openSlot); // lessons to do, plus a finished one he opened again
-  const finished = slots.filter((s) => isDone(s.period.slot) && !isPacked(s.period.slot) && s.period.slot !== openSlot);
-  const packed = slots.filter((s) => isPacked(s.period.slot));
 
   return (
     <main className="min-h-dvh bg-kid px-4 pb-8 pt-4 sm:px-6 lg:px-10">
@@ -154,7 +189,7 @@ export default function KidPage() {
         </motion.section>
       ) : (
         <LayoutGroup>
-          {/* One structure for every screen: lessons on the left, the finished books and the bag on the right; they stack on a phone. */}
+          {/* One structure for every screen: the books on the left, the finished ones and the bag on the right; they stack on a phone. */}
           <div className="mx-auto mt-4 grid max-w-6xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div>
               <motion.div {...enter(0)} className="flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-2.5">
@@ -163,34 +198,13 @@ export default function KidPage() {
                 </div>
                 {hw > 0 && <span className="rounded-full bg-red px-2.5 py-0.5 text-xs font-extrabold text-white">{hw} {d.homework}</span>}
               </motion.div>
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {grid.map(({ period, entry }, i) => {
-                  const meta = SUBJECTS[period.subject_key as SubjectKey];
-                  const title = entry ? ([entry.lesson, entry.topic].find(Boolean) as string) || entry.raw_text.slice(0, 80) : d.emptyCard;
-                  if (openSlot === period.slot) return (
-                    // the card opens in place: same card, more inside, everything visible when it closes
-                    <motion.div key={period.slot} layoutId={lid(period.slot)} layout transition={{ layout: SPRING.gentle }} className="col-span-full rounded-3xl border-4 bg-white p-5 shadow-md" style={{ borderColor: meta.color, borderRadius: 24 }}>
-                      <motion.div layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25, delay: 0.1 }}>
-                        <LessonBody period={period} entry={entry} done={isDone(period.slot)} lang={lang} d={d} onClose={() => setOpenSlot(null)} onDone={(v, f) => mark(period.slot, v, f)} />
-                      </motion.div>
-                    </motion.div>
-                  );
-                  return (
-                    <motion.button key={period.slot} layoutId={lid(period.slot)} layout {...enter(i + 1)} whileTap={TAP} onClick={() => setOpenSlot(period.slot)}
-                      className="relative flex min-h-36 flex-col rounded-3xl border-4 bg-white p-4 text-start shadow-sm" style={{ borderColor: meta.color, borderRadius: 24 }}>
-                      <motion.div layout="position" className="contents">
-                        <div className="flex items-center gap-3">
-                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl font-display text-xl font-extrabold text-white" style={{ background: meta.color }}>{period.slot}</span>
-                          <span className="text-3xl">{meta.icon}</span>
-                          <span className="ms-auto text-2xl text-line">☆</span>
-                        </div>
-                        <div className="mt-2 font-display text-lg font-extrabold leading-tight" dir="auto">{subjectName(period.subject_key)}</div>
-                        <p dir="auto" className="mt-1 line-clamp-2 text-sm text-ink-2">{title}</p>
-                        {entry?.homework && <span className="mt-2 inline-block w-fit rounded-full bg-red px-2.5 py-0.5 text-xs font-extrabold text-white">{d.homeworkTitle.toUpperCase()}</span>}
-                      </motion.div>
-                    </motion.button>
-                  );
-                })}
+              {/* Every book keeps its place on the grid. A finished one leaves an empty slot behind and comes back to it if he changes his mind. */}
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                {slots.map(({ period, entry }, i) =>
+                  isDone(period.slot)
+                    ? <div key={period.slot} className="h-56 rounded-[18px] border-2 border-dashed border-ink/10" />
+                    : <Cover key={period.slot} period={period} entry={entry} d={d} layoutId={lid(period.slot)} {...enter(i + 1)} whileTap={TAP} onClick={() => setOpenSlot(period.slot)} />,
+                )}
               </div>
             </div>
 
@@ -201,22 +215,30 @@ export default function KidPage() {
                     {allPacked ? d.readyShort : allDone ? d.packShort : `✅ ${d.finished}`}
                   </motion.h2>
                 </AnimatePresence>
-                <div className="mt-3 flex min-h-[88px] flex-wrap items-end gap-3">
+                {/* Once everything is finished the books move as one group: drag any of them and they all go into the bag together. */}
+                <motion.div drag={allDone && finished.length > 0} dragSnapToOrigin dragElastic={0.6} dragMomentum={false} dragTransition={SPRING.spatial as object}
+                  onDragStart={() => { dragged.current = true; }} onDragEnd={(_e, info) => droppedGroup(info)}
+                  whileDrag={{ scale: 1.06, rotate: 3, zIndex: 50 }}
+                  className={`mt-3 flex min-h-[88px] flex-wrap items-end gap-3 ${allDone && finished.length > 0 ? "cursor-grab touch-none" : ""}`}>
                   {finished.map(({ period }) => (
                     <Book key={period.slot} subjectKey={period.subject_key} layoutId={lid(period.slot)} layout transition={{ layout: SPRING.hero }}
-                      drag={allDone} dragSnapToOrigin dragElastic={0.6} dragMomentum={false} dragTransition={SPRING.spatial as object}
-                      onDragStart={() => { dragged.current = true; }} onDragEnd={(_e, info) => dropped(period.slot, info)}
-                      whileDrag={{ scale: 1.1, rotate: 4, zIndex: 50, boxShadow: "0 18px 30px -12px rgba(0,0,0,.4)" }}
-                      onTap={() => { if (!dragged.current) setOpenSlot(period.slot); }}
-                      className={allDone ? "cursor-grab touch-none" : "cursor-pointer"} />
+                      whileTap={{ scale: 0.95 }} onTap={() => { if (!dragged.current) setOpenSlot(period.slot); }} className="cursor-pointer" />
                   ))}
                   {finished.length === 0 && packed.length === 0 && <p className="text-sm text-ink-2">☆</p>}
-                </div>
+                </motion.div>
+                <AnimatePresence>
+                  {allDone && bagOpen && !allPacked && finished.length > 0 && (
+                    <motion.button key="packall" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={SPRING.gentle} whileTap={TAP} onClick={packAll}
+                      className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-ink py-3 font-display text-lg font-extrabold text-white shadow-md">
+                      {d.packAll} <span className="text-xl leading-none">↓</span>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
                 <AnimatePresence>
                   {allDone && (
                     <Bag key="bag" open={bagOpen && (!allPacked || reopen)} count={packedCount} mouthRef={mouthRef} onTapBag={() => allPacked && setReopen((r) => !r)}>
                       {packed.map(({ period }) => (
-                        <Book key={period.slot} subjectKey={period.subject_key} layoutId={lid(period.slot)} layout transition={{ layout: SPRING.hero }} small whileTap={{ y: -8 }} onTap={() => pack(period.slot, false)} className="cursor-pointer" />
+                        <Book key={period.slot} subjectKey={period.subject_key} layoutId={lid(period.slot)} layout transition={{ layout: SPRING.hero }} small whileTap={{ y: -8 }} onTap={() => packOne(period.slot, false)} className="cursor-pointer" />
                       ))}
                     </Bag>
                   )}
@@ -224,6 +246,13 @@ export default function KidPage() {
               </motion.section>
             </aside>
           </div>
+
+          <AnimatePresence>
+            {open && (
+              <OpenBook key={open.period.slot} layoutId={lid(open.period.slot)} period={open.period} entry={open.entry} done={isDone(open.period.slot)} d={d}
+                onClose={() => setOpenSlot(null)} onFinish={(f) => finish(open.period.slot, true, f)} onUndo={() => finish(open.period.slot, false)} />
+            )}
+          </AnimatePresence>
         </LayoutGroup>
       )}
 
