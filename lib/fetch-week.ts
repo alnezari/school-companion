@@ -13,8 +13,11 @@ export type FetchResult = { checked: string; found: number | null; missing: numb
  * A week is "missing" when its number (from the first week's start date up to the week tomorrow belongs to) has no stored row.
  * The nightly check leaves a week alone for a day after a failed reading; the refresh button always tries.
  */
-export async function runFetch(sb: SupabaseClient, source: "refresh" | "auto"): Promise<FetchResult> {
+export async function runFetch(sb: SupabaseClient, source: "refresh" | "auto", opts: { week?: number } = {}): Promise<FetchResult> {
   const checked = new Date().toISOString();
+  // never two readings at once (a second tap, or the cron landing on a running refresh)
+  const { data: busy } = await sb.from("uploads").select("id").in("status", ["saving", "timetable", "plan"]).gte("updated_at", new Date(Date.now() - 6 * 60e3).toISOString()).limit(1);
+  if (busy && busy.length) return { checked, found: null, missing: [], skipped: "busy", error: "A reading is already running. Wait for it to finish." };
   const { data: rows } = await sb.from("settings").select("key,value").in("key", ["school_plan_folder", "school_timetable_folder", "school_class", "school_week1_start", "notif_week_ready"]);
   const s = Object.fromEntries(((rows || []) as { key: string; value: string }[]).map((r) => [r.key, r.value]));
   const planFolder = folderIdFrom(s.school_plan_folder || ""), ttFolder = folderIdFrom(s.school_timetable_folder || "");
@@ -25,7 +28,8 @@ export async function runFetch(sb: SupabaseClient, source: "refresh" | "auto"): 
   const upto = weekNumberFor(addDays(todayISO(), 1), week1) ?? 0;
   const { data: have } = await sb.from("weeks").select("week_number");
   const stored = new Set(((have || []) as { week_number: number | null }[]).map((w) => w.week_number));
-  const missing = Array.from({ length: upto }, (_, i) => i + 1).filter((n) => !stored.has(n));
+  // a named week is read again even if it is stored (the parent asked for it); otherwise the earliest missing one
+  const missing = opts.week ? [opts.week] : Array.from({ length: upto }, (_, i) => i + 1).filter((n) => !stored.has(n));
   if (missing.length === 0) { await note({ found: null, missing }); return { checked, found: null, missing }; }
 
   let plans: DriveFile[], tts: DriveFile[];
@@ -45,7 +49,10 @@ export async function runFetch(sb: SupabaseClient, source: "refresh" | "auto"): 
     }
     target = n; break;
   }
-  if (!target) { await note({ found: null, missing }); return { checked, found: null, missing }; }
+  if (!target) {
+    const error = opts.week ? `Week ${opts.week} is not in the school folder.` : undefined;
+    await note({ found: null, missing, error }); return { checked, found: null, missing, error };
+  }
 
   const plan = plans.find((f) => f.week === target)!;
   const tt = tts.find((f) => f.week === target) ?? null;

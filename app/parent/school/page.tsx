@@ -43,6 +43,7 @@ export default function ParentPage() {
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [week1, setWeek1] = useState<string | null>(null);
   const [lastCheck, setLastCheck] = useState<LastCheck | null>(null);
+  const [rereading, setRereading] = useState(false);
 
   useEffect(() => { if (!isParentUnlocked()) router.replace("/"); }, [router]);
   const load = useCallback(async () => {
@@ -72,6 +73,17 @@ export default function ParentPage() {
   const weekNo = week?.week_number ?? (weekStart && week1 ? weekNumberFor(weekStart, week1) : null);
   const run = runs.find((r) => r.week_number != null && r.week_number === weekNo && (r.status === "done" || r.status === "failed")) ?? null;
   const missingNow = weekStart && currentStart && weekStart <= currentStart && !week;
+  /** Reads this week's documents again from the school folder (a wrong reading, or corrected documents). Lessons are replaced in place; stars stay. */
+  async function readAgain() {
+    if (!weekNo || !confirm(d.readAgainConfirm)) return;
+    setRereading(true);
+    try {
+      const res = await fetch("/api/fetch-week", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ week: weekNo }) });
+      const r = (await res.json()) as { checked?: string; found?: number | null; error?: string; message?: string };
+      setLastCheck({ at: r.checked ?? new Date().toISOString(), source: "refresh", found: r.found ?? null, error: r.error ?? r.message });
+    } catch (e) { setLastCheck({ at: new Date().toISOString(), source: "refresh", error: e instanceof Error ? e.message : String(e) }); }
+    await load(); setRereading(false);
+  }
   const toggle = (k: string) => setOpenKey((o) => (o === k ? null : k));
   const rowCls = "grid w-full grid-cols-[24px_64px_1fr_auto] items-center gap-2 px-3 py-2 text-start tabular-nums";
   /** One line under the documents: where this week came from and when, or that it is still awaited. */
@@ -163,7 +175,9 @@ export default function ParentPage() {
           <DocButton href={planUrl} icon="📄" label={d.planDoc} />
           <DocButton href={ttUrl} icon="🗓" label={d.ttDoc} />
         </div>
-        {statement && <p dir="auto" className={`mt-2 text-center text-xs ${run?.status === "failed" || (!run && lastCheck?.error) ? "text-red" : "text-ink-2"}`}>{statement}</p>}
+        {rereading ? <p className="mt-2 flex items-center justify-center gap-2 text-center text-xs text-ink-2"><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-accent" />{d.readingAgain}</p>
+          : statement && <p dir="auto" className={`mt-2 text-center text-xs ${run?.status === "failed" || (!run && lastCheck?.error) ? "text-red" : "text-ink-2"}`}>{statement}</p>}
+        {week1 && weekNo != null && !rereading && <button onClick={readAgain} className="mt-1 block w-full text-center text-xs text-ink-2 underline">↻ {d.readAgain}</button>}
       </div>
 
     </main>
