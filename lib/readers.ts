@@ -44,8 +44,9 @@ export async function storeFile(sb: SB, file: File, folder: string, stem: string
 }
 type Doc = Awaited<ReturnType<typeof storeFile>>["doc"];
 
-export async function readTimetable(sb: SB, doc: Doc, storagePath: string, validFrom: string) {
-  const rules = fs.readFileSync(path.join(process.cwd(), "rules", "timetable-rules.md"), "utf8");
+export async function readTimetable(sb: SB, doc: Doc, storagePath: string, validFrom: string, className: string | null) {
+  let rules = fs.readFileSync(path.join(process.cwd(), "rules", "timetable-rules.md"), "utf8");
+  if (className) rules += `\n\n# The class to read\nThis document may hold the timetables of several classes, one after another. Read ONLY the grid for class "${className}" and ignore every other class. If there is no grid for "${className}", set is_timetable to false and say in what_i_saw which classes you found.\n`;
   let parsed: TimetableOutput | null = null;
   try {
     const res = await new Anthropic().messages.parse({
@@ -61,6 +62,8 @@ export async function readTimetable(sb: SB, doc: Doc, storagePath: string, valid
   }
   if (!parsed) throw new ReadError("unparseable", "The reader returned something the app could not understand.");
   if (!parsed.is_timetable || parsed.periods.length === 0) throw new ReadError("not_a_timetable", parsed.what_i_saw, parsed.problems);
+  if (className && parsed.class_name && parsed.class_name.replace(/\s/g, "").toUpperCase() !== className.replace(/\s/g, "").toUpperCase())
+    throw new ReadError("wrong_class", `The reader returned class "${parsed.class_name}" instead of "${className}".`, parsed.problems);
 
   // Validate in code. Anything odd becomes an issue; nothing is silently fixed.
   const issues: Issue[] = parsed.problems.map((p) => ({ en: p, ar: p }));
@@ -132,5 +135,5 @@ export async function readPlan(sb: SB, doc: Doc, storagePath: string) {
   };
   const { data: weekId, error } = await sb.rpc("replace_week", { p_week: week, p_entries: entries });
   if (error) throw new ReadError("db", error.message, [], 500);
-  return { weekId: weekId as string, start, end, confidence, issues, what_i_saw: parsed.what_i_saw, counts: { items: parsed.items.length, placed: entries.filter((e) => e.placed).length } };
+  return { weekId: weekId as string, weekNumber: parsed.week_number, start, end, confidence, issues, what_i_saw: parsed.what_i_saw, counts: { items: parsed.items.length, placed: entries.filter((e) => e.placed).length } };
 }

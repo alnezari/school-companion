@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLang } from "@/lib/lang";
 import { t, DAY_SHORT, DAY_NAMES, type Dict } from "@/lib/i18n";
 import { todayISO, schoolDay, weekStartFor, addDays, formatDate } from "@/lib/schedule";
-import { buildDay, homeworkCount, loadEntries, loadLatestTimetable, loadLatestUpload, loadPeriods, loadWeekByStart, signedUrl, subscribeUploads, type Entry, type UploadJob, type WeekRow } from "@/lib/data";
+import { buildDay, homeworkCount, loadEntries, loadLatestUpload, loadPeriods, loadSettings, loadTimetableById, loadWeekByStart, markUploadSeen, signedUrl, subscribeUploads, type Entry, type LastCheck, type UploadJob, type WeekRow } from "@/lib/data";
 import { ParentNav } from "@/components/ParentNav";
 import type { Period } from "@/lib/placement";
 import { SUBJECTS, PLAN_SUBJECT_LABEL, subjectName, type SubjectKey, type PlanSubject } from "@/lib/subjects";
@@ -45,12 +45,18 @@ export default function ParentPage() {
   const [ttFile, setTtFile] = useState<File | null>(null);
   const [job, setJob] = useState<UploadJob | null>(null);
   const [dismissed, setDismissed] = useState<string | null>(null);
+  const [folders, setFolders] = useState(false);
+  const [lastCheck, setLastCheck] = useState<LastCheck | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => { if (!isParentUnlocked()) router.replace("/"); }, [router]);
   const load = useCallback(async () => {
     if (!weekStart) return;
-    const [w, tt] = await Promise.all([loadWeekByStart(weekStart), loadLatestTimetable()]);
-    const p = await loadPeriods(w?.timetable_id);
+    const [w, s] = await Promise.all([loadWeekByStart(weekStart), loadSettings()]);
+    setFolders(!!s.school_plan_folder);
+    try { setLastCheck(s.school_last_check ? JSON.parse(s.school_last_check) : null); } catch { setLastCheck(null); }
+    // this week's own documents: the plan it was read from and the timetable it was placed on
+    const [p, tt] = await Promise.all([loadPeriods(w?.timetable_id), w?.timetable_id ? loadTimetableById(w.timetable_id) : Promise.resolve(null)]);
     setPeriods(p); setWeek(w);
     setTtUrl(tt?.source_path ? await signedUrl(tt.source_path) : null);
     if (w) { const [e, url] = await Promise.all([loadEntries(w.id), signedUrl(w.source_path)]); setEntries(e); setPlanUrl(url); }
@@ -75,7 +81,7 @@ export default function ParentPage() {
     if (ttFile) fd.append("timetable", ttFile);
     setSheet(false); setPlanFile(null); setTtFile(null); setDismissed(null);
     const now = new Date().toISOString();
-    setJob({ id: "local", status: "saving", message: null, problems: [], plan_path: null, timetable_path: ttFile ? "pending" : null, week_id: null, created_at: now, updated_at: now });
+    setJob({ id: "local", status: "saving", source: "manual", week_number: null, seen_at: null, message: null, problems: [], plan_path: null, timetable_path: ttFile ? "pending" : null, week_id: null, created_at: now, updated_at: now });
     try {
       const res = await fetch("/api/upload-week", { method: "POST", body: fd });
       const json = await res.json();
@@ -86,9 +92,20 @@ export default function ParentPage() {
       setJob((j) => j && running(j) ? { ...j, message: e instanceof Error ? e.message : String(e) } : j);
     }
   }
+  /** The refresh button: the server looks in the school folders and reads a new week if there is one. */
+  async function check() {
+    setChecking(true); setDismissed(null);
+    try {
+      const res = await fetch("/api/fetch-week", { method: "POST" });
+      const r = (await res.json()) as { checked?: string; found?: number | null; error?: string; skipped?: string; message?: string };
+      setLastCheck({ at: r.checked ?? new Date().toISOString(), source: "refresh", found: r.found ?? null, error: r.error ?? r.message });
+      load();
+    } catch (e) { setLastCheck({ at: new Date().toISOString(), source: "refresh", error: e instanceof Error ? e.message : String(e) }); }
+    setChecking(false);
+  }
   const age = job ? Date.now() - new Date(job.updated_at).getTime() : Infinity;
   const stale = running(job) && age > STALE_MS;
-  const showJob = !!job && job.id !== dismissed && (running(job) || age < SHOW_MS);
+  const showJob = !!job && job.id !== dismissed && (running(job) || (age < SHOW_MS && !(job.source === "auto" && job.status === "done")));
 
   const toggle = (k: string) => setOpenKey((o) => (o === k ? null : k));
   const rowCls = "grid w-full grid-cols-[24px_64px_1fr_auto] items-center gap-2 px-3 py-2 text-start tabular-nums";
@@ -103,6 +120,13 @@ export default function ParentPage() {
 
       <div className="mx-auto mt-3 max-w-3xl">
         <ParentNav active="week" d={d} />
+        {job && job.source === "auto" && job.status === "done" && !job.seen_at && job.id !== dismissed && (
+          <div className="mt-3 flex items-center gap-2 rounded-2xl border-s-4 border-green bg-green-soft px-3 py-2 text-sm">
+            <span className="flex-1">✨ <b>{d.parentTitle} {job.week_number ?? ""} {d.weekReady}</b> · {d.fetchedAuto} {formatDate(job.updated_at.slice(0, 10), lang)}</span>
+            {job.week_id && week?.id !== job.week_id && <Link href="/parent/school" className="rounded-lg bg-white px-3 py-1 font-semibold">{d.open}</Link>}
+            <button onClick={() => { setDismissed(job.id); markUploadSeen(job.id); }} className="px-1 text-ink-2">✕</button>
+          </div>
+        )}
         {weekStart && currentStart && !isCurrent && (
           <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl border-s-4 border-orange bg-orange-soft px-3 py-2 text-sm">
             <span>⏪ {weekStart < currentStart ? d.oldWeek : d.futureWeek}</span>
@@ -164,12 +188,11 @@ export default function ParentPage() {
           </>
         )}
 
-        {/* The two documents, opened straight away. */}
+        {/* This week's two documents, opened straight away. */}
         <div className="mt-6 grid grid-cols-2 gap-2">
           <DocButton href={planUrl} icon="📄" label={d.planDoc} />
           <DocButton href={ttUrl} icon="🗓" label={d.ttDoc} />
         </div>
-        <Link href="/parent/school/timetable" className="mt-2 block text-center text-xs text-ink-2 underline">{d.fixTimetable}</Link>
 
         {showJob && job && (
           <section className={`mt-4 rounded-2xl border-s-4 bg-white p-4 text-sm ${job.status === "done" ? "border-green" : job.status === "failed" || stale ? "border-red" : "border-accent"}`}>
@@ -200,7 +223,19 @@ export default function ParentPage() {
           </section>
         )}
 
-        <button onClick={() => setSheet(true)} disabled={running(job) && !stale} className="mt-4 w-full rounded-2xl bg-accent py-4 font-display text-lg font-extrabold text-white shadow-sm disabled:opacity-50">⬆ {d.uploadBoth}</button>
+        <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+          <button onClick={check} disabled={checking || !folders || (running(job) && !stale)} title={folders ? undefined : d.noFolders}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 font-display text-lg font-extrabold text-white shadow-sm disabled:opacity-50">
+            {checking ? <span className="h-5 w-5 animate-spin rounded-full border-[3px] border-white/40 border-t-white" /> : "🔄"} {checking ? d.checking : d.checkFolder}
+          </button>
+          <button onClick={() => setSheet(true)} disabled={running(job) && !stale} className="rounded-2xl border border-line bg-white px-4 font-display text-lg font-extrabold disabled:opacity-50">⬆ {d.uploadShort}</button>
+        </div>
+        {!folders && <p className="mt-2 text-center text-xs text-ink-2">{d.noFolders}</p>}
+        {lastCheck && !checking && (
+          <p dir="auto" className={`mt-2 text-center text-xs ${lastCheck.error ? "text-red" : "text-ink-2"}`}>
+            {d.lastChecked} {new Date(lastCheck.at).toLocaleString(lang === "ar" ? "ar-SA" : "en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })} · {lastCheck.error ? lastCheck.error : lastCheck.found ? `${d.parentTitle} ${lastCheck.found} ${d.weekReady}` : d.nothingNew}
+          </p>
+        )}
       </div>
 
       {sheet && (

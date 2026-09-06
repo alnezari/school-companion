@@ -34,12 +34,13 @@ export async function POST(req: Request) {
     const tt = timetable ? await storeFile(sb, timetable, "timetables", validFrom) : null;
     await step({ plan_path: p.storagePath, timetable_path: tt?.storagePath ?? null, status: tt ? "timetable" : "plan" });
 
-    const ttResult = tt ? await readTimetable(sb, tt.doc, tt.storagePath, validFrom) : null;
+    const { data: cls } = await sb.from("settings").select("value").eq("key", "school_class").maybeSingle();
+    const ttResult = tt ? await readTimetable(sb, tt.doc, tt.storagePath, validFrom, cls?.value || null) : null;
     if (tt) await step({ status: "plan" });
 
     const week = await readPlan(sb, p.doc, p.storagePath);
     const problems = [...(ttResult?.issues ?? []), ...week.issues].map((i) => i.en);
-    await step({ status: "done", week_id: week.weekId, message: week.what_i_saw, problems });
+    await step({ status: "done", week_id: week.weekId, week_number: week.weekNumber, message: week.what_i_saw, problems });
     return NextResponse.json({ ok: true, ...week, timetable: ttResult });
   } catch (e) {
     const err = e instanceof ReadError ? e : new ReadError("failed", e instanceof Error ? e.message : String(e), [], 500);

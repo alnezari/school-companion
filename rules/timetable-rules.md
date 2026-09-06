@@ -6,7 +6,7 @@ You are reading a school timetable grid for one class (Grade 2, Saudi Arabia). D
 
 ## What to return
 - `is_timetable`: false if the document is not a timetable grid; then describe in `what_i_saw` what it is and return no periods.
-- `class_name`: the class label printed on the grid (for example "2E"), or null.
+- `class_name`: the class label printed on the grid (for example "2E"), or null. A document can hold several classes' grids one after another; when the app names a class, read only that grid.
 - `periods`: one item per lesson cell: `day` (sun..thu), `slot` (1..8), `start_time` and `end_time` as HH:MM from the column headers, `subject_key` from the list below, `subject_text` exactly as printed, and `teacher` exactly as printed under the cell (or null). If a cell is empty, return nothing for it.
 - `problems`: anything unclear, unreadable, or a subject you could not map, in plain English.
 
