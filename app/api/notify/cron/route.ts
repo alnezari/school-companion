@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 // Called once a day by Vercel Cron, early evening Riyadh time. First it looks in the school folders for a new week;
 // then it sends a push only if tomorrow is a school day AND there is still no plan for it.
 export async function GET(req: Request) {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return NextResponse.json({ error: "no_service_key", message: "SUPABASE_SERVICE_ROLE_KEY is not set in Vercel." }, { status: 500 });
   const secret = process.env.CRON_SECRET;
   if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 

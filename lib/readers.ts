@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PlanOutput, TimetableOutput } from "@/lib/parse-schema";
 import { placeWeek, type Period } from "@/lib/placement";
@@ -33,6 +34,7 @@ export function checkFile(v: FormDataEntryValue | null): File | null {
 export async function storeFile(sb: SB, file: File, folder: string, stem: string) {
   const kind = ALLOWED[file.type];
   const bytes = Buffer.from(await file.arrayBuffer());
+  const hash = createHash("sha256").update(bytes).digest("hex");
   const ext = file.name.split(".").pop()?.toLowerCase() || (kind === "pdf" ? "pdf" : "jpg");
   const storagePath = `${folder}/${stem}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
   const up = await sb.storage.from("documents").upload(storagePath, bytes, { contentType: file.type, upsert: false });
@@ -40,11 +42,11 @@ export async function storeFile(sb: SB, file: File, folder: string, stem: string
   const doc = kind === "pdf"
     ? { type: "document" as const, source: { type: "base64" as const, media_type: "application/pdf" as const, data: bytes.toString("base64") } }
     : { type: "image" as const, source: { type: "base64" as const, media_type: file.type as "image/jpeg" | "image/png" | "image/webp", data: bytes.toString("base64") } };
-  return { storagePath, doc };
+  return { storagePath, doc, hash };
 }
 type Doc = Awaited<ReturnType<typeof storeFile>>["doc"];
 
-export async function readTimetable(sb: SB, doc: Doc, storagePath: string, validFrom: string, className: string | null) {
+export async function readTimetable(sb: SB, doc: Doc, storagePath: string, validFrom: string, className: string | null, fileHash?: string) {
   let rules = fs.readFileSync(path.join(process.cwd(), "rules", "timetable-rules.md"), "utf8");
   if (className) rules += `\n\n# The class to read\nThis document may hold the timetables of several classes, one after another. Read ONLY the grid for class "${className}" and ignore every other class. If there is no grid for "${className}", set is_timetable to false and say in what_i_saw which classes you found.\n`;
   let parsed: TimetableOutput | null = null;
@@ -82,7 +84,7 @@ export async function readTimetable(sb: SB, doc: Doc, storagePath: string, valid
   }
   if (periods.length < 20) issues.push({ en: `Only ${periods.length} periods were read; a full week has about 39. Check the original.`, ar: `قُرئت ${periods.length} حصة فقط؛ الأسبوع الكامل فيه نحو 39. راجع المستند الأصلي.` });
 
-  const tt = { name: `${parsed.class_name ?? "Timetable"} from ${validFrom}`, valid_from: validFrom, source_path: storagePath, notes: parsed.what_i_saw, class_name: parsed.class_name, issues, model: MODEL };
+  const tt = { name: `${parsed.class_name ?? "Timetable"} from ${validFrom}`, valid_from: validFrom, source_path: storagePath, notes: parsed.what_i_saw, class_name: parsed.class_name, issues, model: MODEL, file_hash: fileHash ?? null };
   const { data: id, error } = await sb.rpc("replace_timetable", { p_tt: tt, p_periods: periods });
   if (error) throw new ReadError("db", error.message, [], 500);
   return { timetableId: id as string, count: periods.length, issues, what_i_saw: parsed.what_i_saw };
@@ -95,9 +97,18 @@ function timetableText(periods: Period[]) {
   return lines.join("\n");
 }
 
-/** Reads the weekly plan against the current timetable and writes the week. */
-export async function readPlan(sb: SB, doc: Doc, storagePath: string) {
-  const { data: tt } = await sb.from("timetables").select("id").order("valid_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+/** The timetable a week should be placed on: the one read with it, else the newest one that was valid by then, else the newest at all. */
+export async function timetableFor(sb: SB, weekStart: string | null): Promise<string | null> {
+  const q = sb.from("timetables").select("id").order("valid_from", { ascending: false }).order("created_at", { ascending: false }).limit(1);
+  const { data } = await (weekStart ? q.lte("valid_from", weekStart) : q).maybeSingle();
+  if (data) return data.id as string;
+  if (!weekStart) return null;
+  return timetableFor(sb, null);
+}
+
+/** Reads the weekly plan against one timetable and writes the week. */
+export async function readPlan(sb: SB, doc: Doc, storagePath: string, timetableId: string | null) {
+  const tt = timetableId ? { id: timetableId } : null;
   if (!tt) throw new ReadError("no_timetable", "No timetable is stored yet. Upload the timetable together with the plan.", [], 400);
   const { data: periodsRaw } = await sb.from("periods").select("day,slot,start_time,end_time,subject_key,teacher").eq("timetable_id", tt.id).order("day").order("slot");
   const periods = (periodsRaw || []) as Period[];

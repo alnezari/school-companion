@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import { ReadError, checkFile, storeFile, readTimetable, readPlan } from "@/lib/readers";
+import { ReadError, checkFile, storeFile, readTimetable, readPlan, timetableFor } from "@/lib/readers";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // Vercel Hobby allows up to 5 minutes; both readings fit inside it
@@ -35,10 +35,10 @@ export async function POST(req: Request) {
     await step({ plan_path: p.storagePath, timetable_path: tt?.storagePath ?? null, status: tt ? "timetable" : "plan" });
 
     const { data: cls } = await sb.from("settings").select("value").eq("key", "school_class").maybeSingle();
-    const ttResult = tt ? await readTimetable(sb, tt.doc, tt.storagePath, validFrom, cls?.value || null) : null;
+    const ttResult = tt ? await readTimetable(sb, tt.doc, tt.storagePath, validFrom, cls?.value || null, tt.hash) : null;
     if (tt) await step({ status: "plan" });
 
-    const week = await readPlan(sb, p.doc, p.storagePath);
+    const week = await readPlan(sb, p.doc, p.storagePath, ttResult?.timetableId ?? await timetableFor(sb, null));
     const problems = [...(ttResult?.issues ?? []), ...week.issues].map((i) => i.en);
     await step({ status: "done", week_id: week.weekId, week_number: week.weekNumber, message: week.what_i_saw, problems });
     return NextResponse.json({ ok: true, ...week, timetable: ttResult });

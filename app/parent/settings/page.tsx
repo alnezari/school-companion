@@ -10,6 +10,7 @@ import { isParentUnlocked } from "@/components/ParentGate";
 import { LangToggle } from "@/components/LangToggle";
 import { enableNotifications, disableNotifications, getNotifState, type NotifState } from "@/lib/notifications";
 import { configFrom, type DayConfig } from "@/lib/day";
+import { SchoolFetch } from "@/components/SchoolFetch";
 
 const input = "mt-1 w-full rounded-xl border border-line bg-white px-3 py-2";
 const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -40,13 +41,15 @@ export default function SettingsPage() {
   const [notifBagPacked, setNotifBagPacked] = useState(true);
   const [notifNoPlan, setNotifNoPlan] = useState(true);
   const [notifWeekReady, setNotifWeekReady] = useState(true);
-  const [school, setSchool] = useState({ school_class: "", school_plan_folder: "", school_timetable_folder: "" });
+  const [school, setSchool] = useState({ school_class: "", school_week1_start: "", school_plan_folder: "", school_timetable_folder: "" });
+  const [all, setAll] = useState<Record<string, string>>({});
   useEffect(() => { if (!isParentUnlocked()) router.replace("/"); }, [router]);
   useEffect(() => {
     loadSettings().then((s) => {
       setPin(s.parent_pin ?? ""); setPinOn(s.parent_pin_enabled !== "false"); setCfg(configFrom(s)); setQuickPinSet(!!s.login_pin_hash);
       setNotifBagPacked(s.notif_bag_packed !== "false"); setNotifNoPlan(s.notif_no_plan_reminder !== "false"); setNotifWeekReady(s.notif_week_ready !== "false");
-      setSchool({ school_class: s.school_class ?? "", school_plan_folder: s.school_plan_folder ?? "", school_timetable_folder: s.school_timetable_folder ?? "" });
+      setSchool({ school_class: s.school_class ?? "", school_week1_start: s.school_week1_start ?? "", school_plan_folder: s.school_plan_folder ?? "", school_timetable_folder: s.school_timetable_folder ?? "" });
+      setAll(s);
     });
     (async () => { const { data } = await supabase().auth.getUser(); setEmail(data.user?.email ?? ""); })();
     getNotifState().then(setNotifState);
@@ -90,7 +93,7 @@ export default function SettingsPage() {
   async function saveSchool(e: React.FormEvent) {
     e.preventDefault();
     await Promise.all((Object.keys(school) as (keyof typeof school)[]).map((k) => saveSetting(k, school[k].trim())));
-    setMsg(d.saved);
+    setAll((a) => ({ ...a, ...school })); setMsg(d.saved);
   }
   async function setNotifPref(key: "notif_bag_packed" | "notif_no_plan_reminder" | "notif_week_ready", value: boolean, setter: (v: boolean) => void) {
     setter(value);
@@ -167,10 +170,14 @@ export default function SettingsPage() {
 
         <form onSubmit={saveSchool} className="mt-3 rounded-2xl border border-line bg-white p-4">
           <h2 className="font-display font-extrabold">🏫 {d.school}</h2>
-          <label className="mt-3 block text-sm font-medium">{d.schoolClass}<input value={school.school_class} onChange={(e) => setSchool({ ...school, school_class: e.target.value })} className={`${input} max-w-32`} /></label>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <label className="block text-sm font-medium">{d.schoolClass}<input value={school.school_class} onChange={(e) => setSchool({ ...school, school_class: e.target.value })} className={input} /></label>
+            <label className="block text-sm font-medium">{d.week1Start}<input type="date" value={school.school_week1_start} onChange={(e) => setSchool({ ...school, school_week1_start: e.target.value })} className={input} /></label>
+          </div>
           <label className="mt-3 block text-sm font-medium">{d.planFolder}<input type="url" value={school.school_plan_folder} onChange={(e) => setSchool({ ...school, school_plan_folder: e.target.value })} dir="ltr" className={input} /></label>
           <label className="mt-3 block text-sm font-medium">{d.ttFolder}<input type="url" value={school.school_timetable_folder} onChange={(e) => setSchool({ ...school, school_timetable_folder: e.target.value })} dir="ltr" className={input} /></label>
           <button className="mt-4 w-full rounded-xl bg-ink py-2 font-semibold text-white">{d.save}</button>
+          <SchoolFetch d={d} lang={lang} settings={all} />
         </form>
 
         <button type="button" onClick={logout} className="mt-4 w-full rounded-xl border border-line py-2 text-sm font-semibold text-ink-2">{d.logout}</button>

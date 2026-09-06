@@ -113,10 +113,14 @@ export function homeworkCount(slots: { entry: Entry | null }[], unmatched: Entry
 
 export interface UploadJob { id: string; status: "saving" | "timetable" | "plan" | "done" | "failed"; source: "manual" | "refresh" | "auto"; week_number: number | null; seen_at: string | null; message: string | null; problems: string[]; plan_path: string | null; timetable_path: string | null; week_id: string | null; created_at: string; updated_at: string }
 export async function markUploadSeen(id: string) { await supabase().from("uploads").update({ seen_at: new Date().toISOString() }).eq("id", id); }
-export interface LastCheck { at: string; source: "refresh" | "auto"; found?: number | null; error?: string }
+export interface LastCheck { at: string; source: "refresh" | "auto"; found?: number | null; missing?: number[]; error?: string }
 export async function loadTimetableById(id: string): Promise<Timetable | null> {
   const { data } = await supabase().from("timetables").select("*").eq("id", id).maybeSingle();
   return (data as Timetable | null) ?? null;
+}
+export async function loadUploads(limit = 30): Promise<UploadJob[]> {
+  const { data } = await supabase().from("uploads").select("*").order("created_at", { ascending: false }).limit(limit);
+  return (data || []) as UploadJob[];
 }
 export async function loadLatestUpload(): Promise<UploadJob | null> {
   const { data } = await supabase().from("uploads").select("*").order("created_at", { ascending: false }).limit(1).maybeSingle();
