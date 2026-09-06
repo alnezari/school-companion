@@ -111,32 +111,21 @@ export function homeworkCount(slots: { entry: Entry | null }[], unmatched: Entry
   return set.size;
 }
 
-export interface EventRow { id: string; title: string; date: string; end_date: string | null; kind: "holiday" | "exam" | "due" | "event"; subject_key: string | null; note: string | null; source: "manual" | "plan" | "school"; week_id: string | null }
-export async function loadEvents(): Promise<EventRow[]> {
-  const { data } = await supabase().from("events").select("*").order("date");
-  return (data || []) as EventRow[];
+export interface UploadJob { id: string; status: "saving" | "timetable" | "plan" | "done" | "failed"; message: string | null; problems: string[]; plan_path: string | null; timetable_path: string | null; week_id: string | null; created_at: string; updated_at: string }
+export async function loadLatestUpload(): Promise<UploadJob | null> {
+  const { data } = await supabase().from("uploads").select("*").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  return (data as UploadJob | null) ?? null;
 }
-export async function saveEvent(e: Partial<EventRow> & { title: string; date: string; kind: EventRow["kind"] }) {
-  const { data, error } = await supabase().from("events").upsert({ ...e, source: e.source ?? "manual" }).select().single();
-  return error ? null : (data as EventRow);
+export function subscribeUploads(onChange: (u: UploadJob) => void) {
+  const ch = supabase().channel("uploads").on("postgres_changes", { event: "*", schema: "public", table: "uploads" }, (payload: RealtimePostgresChangesPayload<UploadJob>) => {
+    if (payload.new && "id" in payload.new) onChange(payload.new as UploadJob);
+  }).subscribe();
+  return () => { supabase().removeChannel(ch); };
 }
-export async function deleteEvent(id: string) {
-  const { error } = await supabase().from("events").delete().eq("id", id);
-  return !error;
-}
-export interface WeekSummary extends WeekRow { created_at: string; done: number; total: number }
+export interface WeekSummary extends WeekRow { created_at: string }
 export async function loadWeeks(): Promise<WeekSummary[]> {
-  const sb = supabase();
-  const [{ data: weeks }, { data: prog }, { data: per }] = await Promise.all([
-    sb.from("weeks").select("*").order("start_date", { ascending: false }),
-    sb.from("progress").select("week_id").not("done_at", "is", null),
-    sb.from("periods").select("timetable_id"),
-  ]);
-  const doneBy: Record<string, number> = {};
-  for (const r of (prog || []) as { week_id: string }[]) doneBy[r.week_id] = (doneBy[r.week_id] ?? 0) + 1;
-  const totalBy: Record<string, number> = {};
-  for (const r of (per || []) as { timetable_id: string }[]) totalBy[r.timetable_id] = (totalBy[r.timetable_id] ?? 0) + 1;
-  return ((weeks || []) as (WeekRow & { created_at: string })[]).map((w) => ({ ...w, done: doneBy[w.id] ?? 0, total: w.timetable_id ? totalBy[w.timetable_id] ?? 0 : 0 }));
+  const { data } = await supabase().from("weeks").select("*").order("start_date", { ascending: false });
+  return (data || []) as WeekSummary[];
 }
 export async function loadWeekByStart(start: string): Promise<WeekRow | null> {
   const { data } = await supabase().from("weeks").select("*").eq("start_date", start).maybeSingle();

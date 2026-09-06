@@ -29,26 +29,21 @@ export default function WeeksPage() {
         {!weeks ? <p className="mt-6 text-center text-ink-2">…</p> : weeks.length === 0 ? (
           <p className="mt-6 rounded-2xl bg-white p-6 text-center text-ink-2">{d.noWeeks}</p>
         ) : (
-          <div className="mt-3 grid gap-2">
+          <div className="mt-3 grid gap-1.5">
             {weeks.map((w) => {
-              const pct = w.total ? Math.round((w.done / w.total) * 100) : 0;
               const isNow = w.start_date === current;
               const color = w.confidence === "green" ? "bg-green" : w.confidence === "orange" ? "bg-orange" : "bg-red";
               return (
                 <Link key={w.id} href={isNow ? "/parent/school" : `/parent/school?week=${w.start_date}`}
-                  className={`block rounded-2xl border bg-white p-3 ${isNow ? "border-accent ring-2 ring-accent/30" : "border-line"}`}>
-                  <div className="flex items-center gap-2">
-                    <span className={`h-3 w-3 shrink-0 rounded-full ${color}`} />
-                    <b>{d.parentTitle} {w.week_number ?? "—"}</b>
-                    <span className="text-sm text-ink-2">· {formatDate(w.start_date, lang)} – {formatDate(addDays(w.start_date, 4), lang)}</span>
-                    {isNow && <span className="ms-auto rounded-full bg-accent-soft px-2 py-0.5 text-xs font-bold text-accent">{d.today}</span>}
-                    {!isNow && w.start_date < current && <span className="ms-auto rounded-full bg-line px-2 py-0.5 text-xs font-bold text-ink-2">{d.past}</span>}
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-line"><div className="h-full bg-green" style={{ width: `${pct}%` }} /></div>
-                  <div className="mt-1 flex justify-between text-xs text-ink-2 tabular-nums">
-                    <span>{w.done}/{w.total} · {pct}% {d.completed}</span>
-                    <span>{d.uploadedOn} {formatDate(w.created_at.slice(0, 10), lang)}</span>
-                  </div>
+                  className={`flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm ${isNow ? "border-accent" : "border-line"}`}>
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${color}`} />
+                  <b>{d.parentTitle} {w.week_number ?? "—"}</b>
+                  <span className="text-ink-2">{formatDate(w.start_date, lang)} – {formatDate(addDays(w.start_date, 4), lang)}</span>
+                  <span className="ms-auto text-xs text-ink-2">
+                    {isNow ? <span className="rounded-full bg-accent-soft px-2 py-0.5 font-bold text-accent">{d.today}</span>
+                      : w.start_date < current ? <span className="rounded-full bg-line px-2 py-0.5 font-bold">{d.past}</span>
+                      : `${d.uploadedOn} ${formatDate(w.created_at.slice(0, 10), lang)}`}
+                  </span>
                 </Link>
               );
             })}

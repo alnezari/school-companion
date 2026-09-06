@@ -13,7 +13,7 @@ export default function ParentHome() {
   const d = t(lang);
   useEffect(() => { if (!isParentUnlocked()) router.replace("/"); }, [router]);
   const apps = [
-    { href: "/parent/school", icon: "📚", title: d.schoolApp, sub: `${d.currentWeek} · ${d.weeks} · ${d.calendar}`, bg: "linear-gradient(160deg,#FFB347,#F27D26)" },
+    { href: "/parent/school", icon: "📚", title: d.schoolApp, sub: `${d.currentWeek} · ${d.weeks} · ${d.uploadShort}`, bg: "linear-gradient(160deg,#FFB347,#F27D26)" },
     { href: "/parent/day", icon: "🗓️", title: d.dayTitle, sub: d.activities, bg: "linear-gradient(160deg,#5AC8FA,#2457C5)" },
   ];
   return (
