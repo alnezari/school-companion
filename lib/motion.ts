@@ -10,6 +10,7 @@ export const SPRING = {
   follow: { type: "spring", stiffness: 600, damping: 44, mass: 1 } as Transition,  // following the finger, press
   bouncy: { type: "spring", stiffness: 340, damping: 18, mass: 1 } as Transition,  // hero moments only
   effect: { type: "spring", stiffness: 300, damping: 35, mass: 1 } as Transition,  // colour and opacity: no bounce
+  hero: { type: "spring", stiffness: 150, damping: 22, mass: 1 } as Transition,     // the big, watchable moves: card to book, book into bag
 };
 export const TAP = { scale: 0.96 };
 /** Staggered entrance for a list: pass the index. */

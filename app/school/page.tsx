@@ -9,7 +9,7 @@ import type { Period } from "@/lib/placement";
 import { SUBJECTS, subjectName, type SubjectKey } from "@/lib/subjects";
 import { SPRING, TAP, enter } from "@/lib/motion";
 import { KidTop } from "@/components/KidTop";
-import { LessonSheet } from "@/components/LessonSheet";
+import { LessonBody } from "@/components/LessonSheet";
 
 const lid = (slot: number) => `lesson-${slot}`;
 
@@ -25,21 +25,21 @@ function Book({ subjectKey, small = false, className = "", ...rest }: { subjectK
   );
 }
 
-/** A flat, soft bag. The mouth is a slot that opens and closes; a zipper draws across it. No 3D, nothing to gap. */
-function Bag({ open, count, total, mouthRef, onTapBag, children }: { open: boolean; count: number; total: number; mouthRef: React.RefObject<HTMLDivElement | null>; onTapBag: () => void; children: React.ReactNode }) {
+/** A flat, soft bag. The mouth is a slot that opens and closes; a zipper draws across it. Slow enough to watch. */
+function Bag({ open, count, mouthRef, onTapBag, children }: { open: boolean; count: number; mouthRef: React.RefObject<HTMLDivElement | null>; onTapBag: () => void; children: React.ReactNode }) {
+  const zip = { duration: 0.7, ease: [0.645, 0.045, 0.355, 1] as const };
   return (
-    <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} transition={SPRING.gentle} className="relative mx-auto mt-4 h-[168px] w-[232px]">
+    <motion.div initial={{ y: 110, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 110, opacity: 0 }} transition={SPRING.hero} className="relative mx-auto mt-5 h-[168px] w-[232px]">
       <motion.div key={`bump-${count}`} initial={{ scaleY: 0.94, scaleX: 1.03 }} animate={{ scaleY: 1, scaleX: 1 }} transition={SPRING.bouncy} className="absolute inset-0 origin-bottom cursor-pointer" onClick={onTapBag}>
         <div className="absolute left-1/2 top-0 h-9 w-24 -translate-x-1/2 rounded-t-full border-[8px] border-b-0 border-[#1D3E7A]" />
         <div className="absolute inset-x-0 bottom-0 top-7 rounded-[28px] bg-[#3B7DDD] shadow-[inset_0_-14px_0_rgba(0,0,0,.10),0_16px_30px_-18px_rgba(0,0,0,.45)]" />
         <div className="absolute inset-x-10 bottom-4 h-11 rounded-2xl bg-[#2F6BD0] shadow-[inset_0_3px_0_rgba(255,255,255,.14)]" />
-        <motion.div ref={mouthRef} initial={false} animate={{ height: open ? 58 : 6, y: open ? 0 : 26 }} transition={SPRING.gentle} onClick={(e) => e.stopPropagation()}
+        <motion.div ref={mouthRef} initial={false} animate={{ height: open ? 58 : 6, y: open ? 0 : 26 }} transition={SPRING.hero} onClick={(e) => e.stopPropagation()}
           className="absolute inset-x-6 top-10 flex items-end justify-center gap-[3px] overflow-hidden rounded-2xl bg-[#17305F] px-2 pb-1.5 shadow-[inset_0_8px_12px_rgba(0,0,0,.45)]">{children}</motion.div>
-        <motion.div initial={false} animate={{ scaleX: open ? 0 : 1, opacity: open ? 0 : 1 }} transition={{ duration: 0.35, ease: [0.645, 0.045, 0.355, 1] }} className="absolute inset-x-6 top-[66px] h-1.5 origin-left rounded-full"
+        <motion.div initial={false} animate={{ scaleX: open ? 0 : 1, opacity: open ? 0 : 1 }} transition={zip} className="absolute inset-x-6 top-[66px] h-1.5 origin-left rounded-full"
           style={{ background: "repeating-linear-gradient(90deg,#FFD84D 0 5px,#E0B93A 5px 7px,transparent 7px 9px)" }} />
-        <motion.div initial={false} animate={{ x: open ? -150 : 0, opacity: open ? 0 : 1 }} transition={{ duration: 0.35, ease: [0.645, 0.045, 0.355, 1] }} className="absolute right-5 top-[61px] h-4 w-3 rounded-sm bg-[#FFD84D] shadow-sm" />
+        <motion.div initial={false} animate={{ x: open ? -160 : 0, opacity: open ? 0 : 1 }} transition={zip} className="absolute right-5 top-[61px] h-4 w-3 rounded-sm bg-[#FFD84D] shadow-sm" />
       </motion.div>
-      <div className="absolute -bottom-6 inset-x-0 text-center font-display text-sm font-extrabold text-[#17305F]">🎒 {count}/{total}</div>
     </motion.div>
   );
 }
@@ -92,8 +92,18 @@ export default function KidPage() {
   const packedCount = slots.filter((s) => st(s.period.slot)?.packed_at).length;
   const allPacked = allDone && packedCount === slots.length;
   // the bag comes in closed, then opens after a beat
-  useEffect(() => { if (!allDone) { setBagOpen(false); return; } const id = setTimeout(() => setBagOpen(true), 650); return () => clearTimeout(id); }, [allDone]);
-  useEffect(() => { if (allPacked) { setReopen(false); const id = setTimeout(() => setCelebrate(true), 700); return () => clearTimeout(id); } }, [allPacked]);
+  useEffect(() => { if (!allDone) { setBagOpen(false); return; } const id = setTimeout(() => setBagOpen(true), 1000); return () => clearTimeout(id); }, [allDone]);
+  const prevPacked = useRef<number | null>(null);
+  useEffect(() => {
+    if (allPacked) setReopen(false);
+    const justFinished = allPacked && prevPacked.current === slots.length - 1; // the last book went in now, not on an earlier visit
+    prevPacked.current = loading ? null : packedCount;
+    if (!justFinished) return;
+    const id = setTimeout(() => setCelebrate(true), 1100); // let the zip close first
+    return () => clearTimeout(id);
+  }, [allPacked, packedCount, slots.length, loading]);
+  useEffect(() => { if (!celebrate) return; const id = setTimeout(() => setCelebrate(false), 4000); return () => clearTimeout(id); }, [celebrate]);
+  const dragged = useRef(false); // a drag must never count as a tap
 
   const mouthRef = useRef<HTMLDivElement>(null);
   async function pack(slot: number, packed: boolean) {
@@ -106,6 +116,7 @@ export default function KidPage() {
     }
   }
   function dropped(slot: number, info: PanInfo) {
+    setTimeout(() => { dragged.current = false; }, 250);
     const r = mouthRef.current?.getBoundingClientRect();
     if (r && info.point.x >= r.left - 16 && info.point.x <= r.right + 16 && info.point.y >= r.top - 40 && info.point.y <= r.bottom + 30) pack(slot, true);
   }
@@ -113,14 +124,14 @@ export default function KidPage() {
     if (!week) return;
     const row = await setProgress(week.id, day, slot, done, feeling ?? null);
     setProgressMap((m) => ({ ...m, [pkey(day, slot)]: row }));
-    if (done) setTimeout(() => setOpenSlot(null), 700);
+    if (done) setTimeout(() => setOpenSlot(null), 900); // a beat to see the star, then the card folds into a book in front of him
   }
 
   const name = settings.child_name || "Taym";
-  const open = openSlot != null ? slots.find((s) => s.period.slot === openSlot) : null;
-  const todo = slots.filter((s) => !st(s.period.slot)?.done_at);
-  const finished = slots.filter((s) => st(s.period.slot)?.done_at && !st(s.period.slot)?.packed_at);
-  const packed = slots.filter((s) => st(s.period.slot)?.packed_at);
+  const isDone = (slot: number) => !!st(slot)?.done_at, isPacked = (slot: number) => !!st(slot)?.packed_at;
+  const grid = slots.filter((s) => !isDone(s.period.slot) || s.period.slot === openSlot); // lessons to do, plus a finished one he opened again
+  const finished = slots.filter((s) => isDone(s.period.slot) && !isPacked(s.period.slot) && s.period.slot !== openSlot);
+  const packed = slots.filter((s) => isPacked(s.period.slot));
 
   return (
     <main className="min-h-dvh bg-kid px-4 pb-8 pt-4 sm:px-6 lg:px-10">
@@ -148,26 +159,35 @@ export default function KidPage() {
             <div>
               <motion.div {...enter(0)} className="flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-2.5">
                 <div className="flex flex-1 gap-1">
-                  {slots.map(({ period }) => <motion.span key={period.slot} initial={false} animate={{ backgroundColor: st(period.slot)?.done_at ? "#1E8E4E" : "#E7DFCF" }} transition={SPRING.effect} className="h-2 flex-1 rounded-full" />)}
+                  {slots.map(({ period }) => <motion.span key={period.slot} initial={false} animate={{ backgroundColor: isDone(period.slot) ? "#1E8E4E" : "#E7DFCF" }} transition={SPRING.effect} className="h-2 flex-1 rounded-full" />)}
                 </div>
-                <span className="font-display text-sm font-extrabold tabular-nums text-ink-2">{doneCount}/{slots.length}</span>
                 {hw > 0 && <span className="rounded-full bg-red px-2.5 py-0.5 text-xs font-extrabold text-white">{hw} {d.homework}</span>}
               </motion.div>
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {todo.map(({ period, entry }, i) => {
+                {grid.map(({ period, entry }, i) => {
                   const meta = SUBJECTS[period.subject_key as SubjectKey];
                   const title = entry ? ([entry.lesson, entry.topic].find(Boolean) as string) || entry.raw_text.slice(0, 80) : d.emptyCard;
+                  if (openSlot === period.slot) return (
+                    // the card opens in place: same card, more inside, everything visible when it closes
+                    <motion.div key={period.slot} layoutId={lid(period.slot)} layout transition={{ layout: SPRING.gentle }} className="col-span-full rounded-3xl border-4 bg-white p-5 shadow-md" style={{ borderColor: meta.color, borderRadius: 24 }}>
+                      <motion.div layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25, delay: 0.1 }}>
+                        <LessonBody period={period} entry={entry} done={isDone(period.slot)} lang={lang} d={d} onClose={() => setOpenSlot(null)} onDone={(v, f) => mark(period.slot, v, f)} />
+                      </motion.div>
+                    </motion.div>
+                  );
                   return (
                     <motion.button key={period.slot} layoutId={lid(period.slot)} layout {...enter(i + 1)} whileTap={TAP} onClick={() => setOpenSlot(period.slot)}
                       className="relative flex min-h-36 flex-col rounded-3xl border-4 bg-white p-4 text-start shadow-sm" style={{ borderColor: meta.color, borderRadius: 24 }}>
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl font-display text-xl font-extrabold text-white" style={{ background: meta.color }}>{period.slot}</span>
-                        <span className="text-3xl">{meta.icon}</span>
-                        <span className="ms-auto text-2xl text-line">☆</span>
-                      </div>
-                      <div className="mt-2 font-display text-lg font-extrabold leading-tight" dir="auto">{subjectName(period.subject_key)}</div>
-                      <p dir="auto" className="mt-1 line-clamp-2 text-sm text-ink-2">{title}</p>
-                      {entry?.homework && <span className="mt-2 inline-block w-fit rounded-full bg-red px-2.5 py-0.5 text-xs font-extrabold text-white">{d.homeworkTitle.toUpperCase()}</span>}
+                      <motion.div layout="position" className="contents">
+                        <div className="flex items-center gap-3">
+                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl font-display text-xl font-extrabold text-white" style={{ background: meta.color }}>{period.slot}</span>
+                          <span className="text-3xl">{meta.icon}</span>
+                          <span className="ms-auto text-2xl text-line">☆</span>
+                        </div>
+                        <div className="mt-2 font-display text-lg font-extrabold leading-tight" dir="auto">{subjectName(period.subject_key)}</div>
+                        <p dir="auto" className="mt-1 line-clamp-2 text-sm text-ink-2">{title}</p>
+                        {entry?.homework && <span className="mt-2 inline-block w-fit rounded-full bg-red px-2.5 py-0.5 text-xs font-extrabold text-white">{d.homeworkTitle.toUpperCase()}</span>}
+                      </motion.div>
                     </motion.button>
                   );
                 })}
@@ -176,54 +196,52 @@ export default function KidPage() {
 
             <aside className="lg:sticky lg:top-4 lg:self-start">
               <motion.section {...enter(1)} className="rounded-3xl bg-white/70 p-4">
-                <div className="flex items-center justify-between">
-                  <AnimatePresence mode="wait" initial={false}>
-                    <motion.h2 key={allPacked ? "ready" : allDone ? "pack" : "fin"} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="font-display font-extrabold">
-                      {allPacked ? d.readyShort : allDone ? d.packShort : `✅ ${d.finished}`}
-                    </motion.h2>
-                  </AnimatePresence>
-                  <span className="text-sm font-semibold tabular-nums text-ink-2">{doneCount}/{slots.length}</span>
-                </div>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.h2 key={allPacked ? "ready" : allDone ? "pack" : "fin"} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="font-display font-extrabold">
+                    {allPacked ? d.readyShort : allDone ? d.packShort : `✅ ${d.finished}`}
+                  </motion.h2>
+                </AnimatePresence>
                 <div className="mt-3 flex min-h-[88px] flex-wrap items-end gap-3">
                   {finished.map(({ period }) => (
-                    <Book key={period.slot} subjectKey={period.subject_key} layoutId={lid(period.slot)} layout
+                    <Book key={period.slot} subjectKey={period.subject_key} layoutId={lid(period.slot)} layout transition={{ layout: SPRING.hero }}
                       drag={allDone} dragSnapToOrigin dragElastic={0.6} dragMomentum={false} dragTransition={SPRING.spatial as object}
-                      whileDrag={{ scale: 1.1, rotate: 4, zIndex: 50, boxShadow: "0 18px 30px -12px rgba(0,0,0,.4)" }} whileTap={{ scale: 0.95 }}
-                      onDragEnd={(_e, info) => dropped(period.slot, info)} onTap={() => setOpenSlot(period.slot)}
+                      onDragStart={() => { dragged.current = true; }} onDragEnd={(_e, info) => dropped(period.slot, info)}
+                      whileDrag={{ scale: 1.1, rotate: 4, zIndex: 50, boxShadow: "0 18px 30px -12px rgba(0,0,0,.4)" }}
+                      onTap={() => { if (!dragged.current) setOpenSlot(period.slot); }}
                       className={allDone ? "cursor-grab touch-none" : "cursor-pointer"} />
                   ))}
                   {finished.length === 0 && packed.length === 0 && <p className="text-sm text-ink-2">☆</p>}
                 </div>
                 <AnimatePresence>
                   {allDone && (
-                    <Bag key="bag" open={bagOpen && (!allPacked || reopen)} count={packedCount} total={slots.length} mouthRef={mouthRef} onTapBag={() => allPacked && setReopen((r) => !r)}>
+                    <Bag key="bag" open={bagOpen && (!allPacked || reopen)} count={packedCount} mouthRef={mouthRef} onTapBag={() => allPacked && setReopen((r) => !r)}>
                       {packed.map(({ period }) => (
-                        <Book key={period.slot} subjectKey={period.subject_key} layoutId={lid(period.slot)} layout small whileTap={{ y: -8 }} onTap={() => pack(period.slot, false)} className="cursor-pointer" />
+                        <Book key={period.slot} subjectKey={period.subject_key} layoutId={lid(period.slot)} layout transition={{ layout: SPRING.hero }} small whileTap={{ y: -8 }} onTap={() => pack(period.slot, false)} className="cursor-pointer" />
                       ))}
                     </Bag>
                   )}
                 </AnimatePresence>
-                {allDone && <div className="h-6" />}
               </motion.section>
             </aside>
           </div>
-
-          <AnimatePresence>
-            {open && week && (
-              <LessonSheet key="sheet" period={open.period} entry={open.entry} done={!!st(open.period.slot)?.done_at} lang={lang} d={d}
-                onClose={() => setOpenSlot(null)} onDone={(v, f) => mark(open.period.slot, v, f)} />
-            )}
-          </AnimatePresence>
         </LayoutGroup>
       )}
 
-      {celebrate && (
-        <div className="confetti pointer-events-none fixed inset-0 z-30" onAnimationEnd={() => setCelebrate(false)}>
-          {Array.from({ length: 40 }).map((_, i) => (
-            <span key={i} style={{ left: `${(i * 37) % 100}%`, background: ["#F27D26", "#22A06B", "#3B7DDD", "#7A5AF8", "#D9A400"][i % 5], animationDelay: `${(i % 10) * 120}ms` }} />
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {celebrate && (
+          <motion.div key="party" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} onClick={() => setCelebrate(false)}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-kid/95 p-6 text-center">
+            <motion.div initial={{ scale: 0.4, rotate: -12 }} animate={{ scale: 1, rotate: 0 }} transition={{ ...SPRING.bouncy, delay: 0.1 }} className="text-[110px] leading-none drop-shadow-lg">🎒</motion.div>
+            <motion.h2 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ ...SPRING.gentle, delay: 0.35 }} className="mt-4 font-display text-4xl font-extrabold sm:text-5xl">{d.bagPackedTitle}</motion.h2>
+            <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ ...SPRING.gentle, delay: 0.5 }} className="mt-2 text-xl text-ink-2">{d.bagPackedSub}</motion.p>
+            <div className="confetti pointer-events-none absolute inset-0">
+              {Array.from({ length: 40 }).map((_, i) => (
+                <span key={i} style={{ left: `${(i * 37) % 100}%`, background: ["#F27D26", "#22A06B", "#3B7DDD", "#7A5AF8", "#D9A400"][i % 5], animationDelay: `${(i % 10) * 120}ms` }} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }
