@@ -3,7 +3,8 @@ export type SubjectKey =
   | "science" | "math"
   | "reading" | "reading_comp" | "vocabulary" | "spelling" | "grammar" | "phonics"
   | "writing" | "writing_mech" | "english_fluency"
-  | "arabic" | "islamic" | "anoos" | "hero" | "pe" | "art" | "ai";
+  | "arabic" | "islamic" | "anoos" | "hero" | "pe" | "art" | "ai" | "other";
+other: { en: "Other", ar: "أخرى", color: "#6B7280", icon: "📚", family: "other" },
 
 // The column names used in the school's weekly plan.
 export type PlanSubject =
