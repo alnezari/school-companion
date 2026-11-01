@@ -93,7 +93,7 @@ export async function readTimetable(sb: SB, doc: Doc, storagePath: string, valid
 function timetableText(periods: Period[]) {
   const lines = ["Day | Period | Time | Subject (key)"];
   for (const p of periods)
-    lines.push(`${DAY_NAMES.en[p.day]} | ${p.slot} | ${p.start_time.slice(0, 5)}-${p.end_time.slice(0, 5)} | ${SUBJECTS[p.subject_key].en} (${p.subject_key})`);
+    lines.push(`${DAY_NAMES.en[p.day]} | ${p.slot} | ${p.start_time.slice(0, 5)}-${p.end_time.slice(0, 5)} | ${SUBJECTS[p.subject_key]?.en ?? "Other"} (${p.subject_key})`);
   return lines.join("\n");
 }
 
