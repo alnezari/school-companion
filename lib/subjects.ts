@@ -4,7 +4,6 @@ export type SubjectKey =
   | "reading" | "reading_comp" | "vocabulary" | "spelling" | "grammar" | "phonics"
   | "writing" | "writing_mech" | "english_fluency"
   | "arabic" | "islamic" | "anoos" | "hero" | "pe" | "art" | "ai" | "other";
-other: { en: "Other", ar: "أخرى", color: "#6B7280", icon: "📚", family: "other" },
 
 // The column names used in the school's weekly plan.
 export type PlanSubject =
@@ -43,6 +42,7 @@ export const SUBJECTS: Record<SubjectKey, SubjectMeta> = {
   hero:            { en: "HERO",             ar: "HERO",              color: "#E0483E", icon: "⭐", family: "hero" },
   pe:              { en: "PE",               ar: "التربية البدنية",   color: "#1FA5A5", icon: "⚽", family: "pe" },
   art:             { en: "Art",              ar: "الفن",              color: "#C74DA0", icon: "🎨", family: "art" },
+  other: { en: "Other", ar: "أخرى", color: "#6B7280", icon: "📚", family: "other" },
   ai:              { en: "Computer / AI",    ar: "الحاسب / الذكاء الاصطناعي", color: "#5A6B8C", icon: "💻", family: "ai" },
 };
 
